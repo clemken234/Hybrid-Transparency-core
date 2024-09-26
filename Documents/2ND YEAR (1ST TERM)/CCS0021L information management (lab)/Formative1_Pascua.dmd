@@ -1,0 +1,8 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<OSDM_Design class="oracle.dbtools.crest.model.design.Design" name="Formative1_Pascua" id="1B1D5ACD-1F8D-B4D7-28F6-0D94BDEBF908" version="3.5">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 13:36:28 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<capitalNames>false</capitalNames>
+<designId>1B1D5ACD-1F8D-B4D7-28F6-0D94BDEBF908</designId>
+</OSDM_Design>
