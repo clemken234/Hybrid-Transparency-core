@@ -1,0 +1,63 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="9C6F50E8-6159-64D3-7062-B86042CA2110" name="Supplier">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<generatorID>8FB0AB48-8AF7-4E20-CF65-82B8EF56FA5D</generatorID>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="SupplierId" id="2DED2CA5-2C78-5009-9404-44F6C08EFDF7">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<generatorID>EFCC7289-7009-C800-5959-6E7BAB4D31E0</generatorID>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="SupplierName" id="C97E1D9B-F5D8-0D29-C2AB-1F6FE8E2B59C">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<generatorID>98AB3706-EBB3-3B05-ADE7-6980BC3BD08E</generatorID>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>50</dataTypeSize>
+<ownDataTypeParameters>50,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="SupplierContactNo_" id="A08A25C8-3C79-7A0A-44F0-5CA79AD05B8F">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<generatorID>9F11D771-70D9-42AF-D8FD-D4B861717F8E</generatorID>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="6666B9C7-7412-BEC1-BF18-89704AC4149E" name="Supplier_PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<generatorID>0E2C00D9-B958-43A4-00FF-48A395B9F58C</generatorID>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="2DED2CA5-2C78-5009-9404-44F6C08EFDF7"/>
+<colUsage columnID="A08A25C8-3C79-7A0A-44F0-5CA79AD05B8F"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

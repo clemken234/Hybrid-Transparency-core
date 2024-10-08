@@ -1,0 +1,18 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Relation class="oracle.dbtools.crest.model.design.logical.Relation" name="Quantity" directorySegmentName="seg_0" id="3FB35362-6C6D-101A-8E80-1389C047F997">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:21:51 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<engineerTo>
+<item key="0B83D260-2D37-5557-5D6E-9CFF6C3EBD9D" value="true"/>
+</engineerTo>
+<identifying>false</identifying>
+<optionalSource>true</optionalSource>
+<optionalTarget>false</optionalTarget>
+<sourceCardinality>*</sourceCardinality>
+<sourceEntity>0636E4E0-4AC1-4EFC-BB4E-4C1E13858B60</sourceEntity>
+<targetCardinalityString>*</targetCardinalityString>
+<targetEntity>4C96A222-36AD-CACA-EB9D-3C419F8BAA76</targetEntity>
+<transferable>true</transferable>
+<deleteRule>NO ACTION</deleteRule>
+</Relation>

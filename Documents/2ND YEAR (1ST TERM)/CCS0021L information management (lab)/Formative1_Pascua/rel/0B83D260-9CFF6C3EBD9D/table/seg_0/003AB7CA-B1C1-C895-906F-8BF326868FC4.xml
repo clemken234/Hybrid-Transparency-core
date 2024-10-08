@@ -1,0 +1,77 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="003AB7CA-B1C1-C895-906F-8BF326868FC4" name="Quantity">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="Product_ProductId" id="8D7370B8-041E-9C8D-D398-55B51FE9D2D1">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="E80FA62A-47C8-65CE-0B93-6CE370BC4A3D" referredColumn="906E33F0-4D2E-0B94-B2E8-491663E376A2"/>
+</associations>
+</Column>
+<Column name="Order_OrderId" id="0E17DA53-8257-402D-3357-4A4B7418C110">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="06851019-8AC1-444F-ACFA-C885752D62D6" referredColumn="6179D309-7E60-C700-DFAE-7674F2587562"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="FA486742-DB03-6183-01F1-565F5F779ED6" name="Quantity_PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="8D7370B8-041E-9C8D-D398-55B51FE9D2D1"/>
+<colUsage columnID="0E17DA53-8257-402D-3357-4A4B7418C110"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="C3A429CB-5B1B-0615-1886-484C2D1DD9F7" name="Quantity_Product_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<generatorID>3FB35362-6C6D-101A-8E80-1389C047F997</generatorID>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="8D7370B8-041E-9C8D-D398-55B51FE9D2D1"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="38E78D5D-1FAA-DE30-0403-7BB235010005" name="Quantity_Order_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<generatorID>3FB35362-6C6D-101A-8E80-1389C047F997</generatorID>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="0E17DA53-8257-402D-3357-4A4B7418C110"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

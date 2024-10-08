@@ -1,0 +1,88 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Entity class="oracle.dbtools.crest.model.design.logical.Entity" directorySegmentName="seg_0" id="4C96A222-36AD-CACA-EB9D-3C419F8BAA76" name="Order">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 13:44:59 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<engineerTo>
+<item key="0B83D260-2D37-5557-5D6E-9CFF6C3EBD9D" value="true"/>
+</engineerTo>
+<adequatelyNormalized>NO</adequatelyNormalized>
+<expectedVolumes>0</expectedVolumes>
+<fwdEngineeringStrategyName>Single Table</fwdEngineeringStrategyName>
+<growthPercent>0</growthPercent>
+<growthType>Year</growthType>
+<maxVolumes>9999999</maxVolumes>
+<minVolumes>0</minVolumes>
+<normalForm>Third</normalForm>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<Attribute name="OrderId" id="0ACCD7B2-B362-D513-AC59-8EABD8727C61">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 13:45:15 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<engineerTo>
+<item key="0B83D260-2D37-5557-5D6E-9CFF6C3EBD9D" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="OrderDate" id="3058CBE5-687D-E0FA-C884-4836D01A64DF">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 13:45:32 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<engineerTo>
+<item key="0B83D260-2D37-5557-5D6E-9CFF6C3EBD9D" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT007</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="CustomerId" id="BDBA81CA-D1A5-E1DB-9724-C6D945B12F7E">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:20:45 UTC</createdTime>
+<generatorID>802597AD-70FC-3782-765D-0A5D61DEDBCE</generatorID>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<engineerTo>
+<item key="0B83D260-2D37-5557-5D6E-9CFF6C3EBD9D" value="true"/>
+</engineerTo>
+<referedAttribute>89A335BB-BECF-4689-CB97-32D1FEE82546</referedAttribute>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="CustomerZipCode" id="1BAA8221-B5EE-BCDA-E81D-1F01C3E8A73D">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:20:45 UTC</createdTime>
+<generatorID>802597AD-70FC-3782-765D-0A5D61DEDBCE</generatorID>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<engineerTo>
+<item key="0B83D260-2D37-5557-5D6E-9CFF6C3EBD9D" value="true"/>
+</engineerTo>
+<referedAttribute>32AFAA2F-DDED-706D-D999-9F4D9BB05D52</referedAttribute>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+</Attribute>
+</attributes>
+<identifiers itemClass="oracle.dbtools.crest.model.design.logical.CandidateKey">
+<identifier id="2F4C45F3-2F42-C08E-7E71-A129BAD4BA12" name="Order PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 13:45:29 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<engineerTo>
+<item key="0B83D260-2D37-5557-5D6E-9CFF6C3EBD9D" value="true"/>
+</engineerTo>
+<pk>true</pk>
+<usedAttributes>
+<attributeRef>0ACCD7B2-B362-D513-AC59-8EABD8727C61</attributeRef>
+</usedAttributes>
+</identifier>
+</identifiers>
+</Entity>

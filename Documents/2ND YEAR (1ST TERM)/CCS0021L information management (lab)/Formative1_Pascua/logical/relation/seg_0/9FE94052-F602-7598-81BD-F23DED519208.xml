@@ -1,0 +1,18 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Relation class="oracle.dbtools.crest.model.design.logical.Relation" name="TraceNo." directorySegmentName="seg_0" id="9FE94052-F602-7598-81BD-F23DED519208">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:22:59 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<engineerTo>
+<item key="0B83D260-2D37-5557-5D6E-9CFF6C3EBD9D" value="true"/>
+</engineerTo>
+<identifying>false</identifying>
+<optionalSource>true</optionalSource>
+<optionalTarget>false</optionalTarget>
+<sourceCardinality>*</sourceCardinality>
+<sourceEntity>8FB0AB48-8AF7-4E20-CF65-82B8EF56FA5D</sourceEntity>
+<targetCardinalityString>*</targetCardinalityString>
+<targetEntity>0636E4E0-4AC1-4EFC-BB4E-4C1E13858B60</targetEntity>
+<transferable>true</transferable>
+<deleteRule>NO ACTION</deleteRule>
+</Relation>

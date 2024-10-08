@@ -1,0 +1,94 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="17FCEDE7-32F1-EA95-B94D-D79690635032" name="TraceNo.">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="Supplier_SupplierId" id="9247FA7F-8A36-E405-3635-E7ED50F51D4C">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="AEB39300-2CE0-6305-F3B1-F29776CA7ED2" referredColumn="2DED2CA5-2C78-5009-9404-44F6C08EFDF7"/>
+</associations>
+</Column>
+<Column name="Supplier_SupplierContactNo_" id="312487A3-25BA-B085-842F-370AB9BCFC12">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="AEB39300-2CE0-6305-F3B1-F29776CA7ED2" referredColumn="A08A25C8-3C79-7A0A-44F0-5CA79AD05B8F"/>
+</associations>
+</Column>
+<Column name="Product_ProductId" id="56B5D116-A678-7068-352A-151AF80CE781">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="C16D95D7-A31A-A742-107A-C40FE928BAC1" referredColumn="906E33F0-4D2E-0B94-B2E8-491663E376A2"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="87EB4317-7CB3-AD7F-F260-BD99AE1B12BD" name="TraceNo._PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="9247FA7F-8A36-E405-3635-E7ED50F51D4C"/>
+<colUsage columnID="312487A3-25BA-B085-842F-370AB9BCFC12"/>
+<colUsage columnID="56B5D116-A678-7068-352A-151AF80CE781"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="D91555E9-7E6F-884A-1B6D-965249871B5B" name="TraceNo._Supplier_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<generatorID>9FE94052-F602-7598-81BD-F23DED519208</generatorID>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="9247FA7F-8A36-E405-3635-E7ED50F51D4C"/>
+<colUsage columnID="312487A3-25BA-B085-842F-370AB9BCFC12"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="B37160FB-AE39-0508-6714-08EA55D826AC" name="TraceNo._Product_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-26 14:24:42 UTC</createdTime>
+<generatorID>9FE94052-F602-7598-81BD-F23DED519208</generatorID>
+<ownerDesignName>Formative1_Pascua</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="56B5D116-A678-7068-352A-151AF80CE781"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>
