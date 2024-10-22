@@ -1,0 +1,59 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Entity class="oracle.dbtools.crest.model.design.logical.Entity" directorySegmentName="seg_0" id="CEE9176D-B0A6-19BE-8D0C-13403EB9317D" name="Genre">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:37:47 UTC</createdTime>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="F5D45659-E435-5399-A589-0518A930699B" value="true"/>
+</engineerTo>
+<adequatelyNormalized>NO</adequatelyNormalized>
+<expectedVolumes>0</expectedVolumes>
+<fwdEngineeringStrategyName>Single Table</fwdEngineeringStrategyName>
+<growthPercent>0</growthPercent>
+<growthType>Year</growthType>
+<maxVolumes>9999999</maxVolumes>
+<minVolumes>0</minVolumes>
+<normalForm>Third</normalForm>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<Attribute name="GenreId" id="DC250C9E-B78D-DF1F-9E0B-3A928E08F2F7">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:38:02 UTC</createdTime>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="F5D45659-E435-5399-A589-0518A930699B" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="GenreName" id="5C933742-2908-EB5D-3C82-A1D13A3FA0A1">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:38:24 UTC</createdTime>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="F5D45659-E435-5399-A589-0518A930699B" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>50</dataTypeSize>
+<ownDataTypeParameters>50,,</ownDataTypeParameters>
+</Attribute>
+</attributes>
+<identifiers itemClass="oracle.dbtools.crest.model.design.logical.CandidateKey">
+<identifier id="6934F083-2F4E-F440-4F08-511B4BABE8A6" name="Genre PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:38:21 UTC</createdTime>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="F5D45659-E435-5399-A589-0518A930699B" value="true"/>
+</engineerTo>
+<pk>true</pk>
+<usedAttributes>
+<attributeRef>DC250C9E-B78D-DF1F-9E0B-3A928E08F2F7</attributeRef>
+</usedAttributes>
+</identifier>
+</identifiers>
+</Entity>

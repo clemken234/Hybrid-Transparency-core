@@ -1,0 +1,89 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Entity class="oracle.dbtools.crest.model.design.logical.Entity" directorySegmentName="seg_0" id="6139849C-4126-B5A7-798E-B326F7AF1DF6" name="Album">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:36:07 UTC</createdTime>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="F5D45659-E435-5399-A589-0518A930699B" value="true"/>
+</engineerTo>
+<adequatelyNormalized>NO</adequatelyNormalized>
+<expectedVolumes>0</expectedVolumes>
+<fwdEngineeringStrategyName>Single Table</fwdEngineeringStrategyName>
+<growthPercent>0</growthPercent>
+<growthType>Year</growthType>
+<maxVolumes>9999999</maxVolumes>
+<minVolumes>0</minVolumes>
+<normalForm>Third</normalForm>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<Attribute name="AlbumId" id="A4D4A05C-8344-C6BD-6E6C-98D1C3515A90">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:36:16 UTC</createdTime>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="F5D45659-E435-5399-A589-0518A930699B" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="AlbumName" id="A54D3B54-9C1C-1FDD-2C98-D0D1C437314E">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:36:34 UTC</createdTime>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="F5D45659-E435-5399-A589-0518A930699B" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>100</dataTypeSize>
+<ownDataTypeParameters>100,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="ArtistID" id="267B45EB-27BB-6BCB-3CDD-7B7DB4E25772">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:41:05 UTC</createdTime>
+<generatorID>B1FD8324-8EE6-6A76-691D-2528F910F930</generatorID>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="F5D45659-E435-5399-A589-0518A930699B" value="true"/>
+</engineerTo>
+<referedAttribute>D19C35DF-8E6C-1BE7-DF2E-A4DCFDAC33B3</referedAttribute>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="GenreId" id="24F39412-8DBE-49A5-CC13-E0FBBE825427">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:44:37 UTC</createdTime>
+<generatorID>476F455E-86C8-5F1C-6E6B-DC2248CDB73E</generatorID>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="F5D45659-E435-5399-A589-0518A930699B" value="true"/>
+</engineerTo>
+<referedAttribute>DC250C9E-B78D-DF1F-9E0B-3A928E08F2F7</referedAttribute>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+</attributes>
+<identifiers itemClass="oracle.dbtools.crest.model.design.logical.CandidateKey">
+<identifier id="44B30986-24E7-8230-29D3-F1F4C6C0E3F9" name="Album PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:36:28 UTC</createdTime>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="F5D45659-E435-5399-A589-0518A930699B" value="true"/>
+</engineerTo>
+<pk>true</pk>
+<usedAttributes>
+<attributeRef>A4D4A05C-8344-C6BD-6E6C-98D1C3515A90</attributeRef>
+</usedAttributes>
+</identifier>
+</identifiers>
+</Entity>

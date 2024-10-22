@@ -1,0 +1,62 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="2A4DEE09-CAF5-15EB-1FF8-97F06115942B" name="Artist">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:46:30 UTC</createdTime>
+<generatorID>912A2FB8-D4A5-E22C-08BD-068C7143DCB5</generatorID>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="ArtistID" id="83BE6737-34BF-8862-5160-C4DF586A7C4B">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:46:30 UTC</createdTime>
+<generatorID>D19C35DF-8E6C-1BE7-DF2E-A4DCFDAC33B3</generatorID>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="ArtistFirstName" id="37307DA2-CEB6-E56E-0CCB-E7DE0EEE18CA">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:46:30 UTC</createdTime>
+<generatorID>C832F3F0-C365-A65F-6B33-DB66F6AFC645</generatorID>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>50</dataTypeSize>
+<ownDataTypeParameters>50,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="ArtistLastName" id="CBFCE22F-F021-CB3F-795F-3DD0AFF3DB31">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:46:30 UTC</createdTime>
+<generatorID>CCB406CB-E048-FACB-74DE-5C23CA3B7D33</generatorID>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>50</dataTypeSize>
+<ownDataTypeParameters>50,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="F6B5AF0A-62DF-85BC-5939-027C1177A2BE" name="Artist_PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-22 02:46:30 UTC</createdTime>
+<generatorID>6BFD0975-C71A-4AFD-9C58-1126257C0AA1</generatorID>
+<ownerDesignName>MPE_fayeanndanicapascua</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="83BE6737-34BF-8862-5160-C4DF586A7C4B"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>
