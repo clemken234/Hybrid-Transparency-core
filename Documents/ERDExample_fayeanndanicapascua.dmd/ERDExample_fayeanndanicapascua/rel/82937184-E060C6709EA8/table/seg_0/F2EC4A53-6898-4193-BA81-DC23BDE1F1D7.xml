@@ -1,0 +1,77 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="F2EC4A53-6898-4193-BA81-DC23BDE1F1D7" name="Catalog">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="Author_AuthorNumber" id="2DF95671-3AE3-3A3D-2262-B3299A0EAD87">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="B03AD480-0D4C-B616-B97C-9D791218DBB0" referredColumn="6561EEEC-25BA-BF98-54C0-325544B44F1F"/>
+</associations>
+</Column>
+<Column name="Book_BookNumber" id="6C61CA4F-7EBD-5E09-233F-BB8A865DC789">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="7DAA3765-A2F5-E490-6480-EB395B52AA13" referredColumn="94D28FDA-23E5-D59F-4B01-2977BDB8DEA2"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="B5E61940-4FD0-B76C-39A9-C4305E3E0414" name="Catalog_PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="2DF95671-3AE3-3A3D-2262-B3299A0EAD87"/>
+<colUsage columnID="6C61CA4F-7EBD-5E09-233F-BB8A865DC789"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="38B7D164-EB60-16A4-DC4F-E8F6730991BE" name="Catalog_Author_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>8A634919-8E5D-D85E-19E2-2137C2E733D2</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="2DF95671-3AE3-3A3D-2262-B3299A0EAD87"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="F07EC92F-102E-6C2B-2BF4-1C04C4DB6B0A" name="Catalog_Book_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>8A634919-8E5D-D85E-19E2-2137C2E733D2</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="6C61CA4F-7EBD-5E09-233F-BB8A865DC789"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

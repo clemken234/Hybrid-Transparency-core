@@ -1,0 +1,103 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="9CECD23F-27EB-183F-68A3-2BA0C17B92CD" name="Wholesaler">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>5BD7E961-B0E3-F7B5-B097-2DEE311BD309</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="WholeSalePrice" id="01978644-2C13-EE15-9341-0DB88ACCEFA8">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>5E27C742-F915-CFED-4CBE-FE04339E09EE</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT026</logicalDatatype>
+<dataTypePrecision>10</dataTypePrecision>
+<dataTypeScale>2</dataTypeScale>
+<ownDataTypeParameters>,10,2</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="Seller_Seller_id" id="6CAF53B3-9B14-3380-8756-D70EAE8DDBA5">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>603B4095-1ABF-017F-5283-AF12EC7B011D</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="A371CD45-081E-1CA5-189A-FD14A8A62C57" referredColumn="A721D361-DF26-62C0-6A1C-52ABBD5517DA"/>
+</associations>
+</Column>
+<Column name="Seller_id" id="C0552291-99B2-C7A0-F1F7-FCF8F5446FF5">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:38:12 UTC</createdTime>
+<generatorID>7FF3A9AA-3486-15FA-B719-7EB1B8708CF0</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="93A1607F-64FD-42AC-C084-229A3FE61B4A" referredColumn="A721D361-DF26-62C0-6A1C-52ABBD5517DA"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="5CBD2EFD-BEE5-364F-E979-1C1672A2C137" name="Wholesaler_PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:38:12 UTC</createdTime>
+<generatorID>278A146E-0E83-8540-D1BD-414CFB2133B5</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="C0552291-99B2-C7A0-F1F7-FCF8F5446FF5"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="2ADDDB04-431E-84FE-D412-18C78641EE52" name="Wholesaler__IDX">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<indexState>Unique Plain Index</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<relationGeneratorID>3FA66D47-DE0B-F448-8D49-5F6BE73534F3</relationGeneratorID>
+<indexColumnUsage>
+<colUsage columnID="6CAF53B3-9B14-3380-8756-D70EAE8DDBA5"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="A44CCF74-14C3-D840-0982-A287DE13F2A6" name="Wholesaler_Seller_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>3FA66D47-DE0B-F448-8D49-5F6BE73534F3</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="6CAF53B3-9B14-3380-8756-D70EAE8DDBA5"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="BAAF7C92-A725-6987-AA80-33845FFB5802" name="Wholesaler_Seller_FKv2">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:38:12 UTC</createdTime>
+<generatorID>AEEF4D2B-DE48-1D01-EACB-90EA4CD15B04</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="C0552291-99B2-C7A0-F1F7-FCF8F5446FF5"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

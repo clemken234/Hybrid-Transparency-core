@@ -1,0 +1,100 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Entity class="oracle.dbtools.crest.model.design.logical.Entity" directorySegmentName="seg_0" id="6B051C7C-FB75-8139-BE3D-8CD3A841D4B6" name="Seller">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 02:41:25 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<adequatelyNormalized>NO</adequatelyNormalized>
+<expectedVolumes>0</expectedVolumes>
+<fwdEngineeringStrategyName>Single Table</fwdEngineeringStrategyName>
+<growthPercent>0</growthPercent>
+<growthType>Year</growthType>
+<maxVolumes>9999999</maxVolumes>
+<minVolumes>0</minVolumes>
+<normalForm>Third</normalForm>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<Attribute name="Seller_id" id="7FF3A9AA-3486-15FA-B719-7EB1B8708CF0">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 02:41:50 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="Seller_FisrtName" id="B2EF986E-0D4C-853F-5300-75AE77340F9C">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 02:42:10 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>50</dataTypeSize>
+<ownDataTypeParameters>50,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="Seller_LastName" id="E3E9FD80-59FC-1865-7BDF-FE4E62BAA23A">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 02:43:05 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>50</dataTypeSize>
+<ownDataTypeParameters>50,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="Seller_ContactNo." id="9D009E6A-C270-7F88-7B2F-990A83B451C0">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 02:43:35 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>11</dataTypeSize>
+<ownDataTypeParameters>11,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="Seller_MaxCredit" id="156CAE80-1446-D95F-24C3-7626182C45EA">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 02:43:57 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT026</logicalDatatype>
+<dataTypePrecision>10</dataTypePrecision>
+<dataTypeScale>2</dataTypeScale>
+<ownDataTypeParameters>,10,2</ownDataTypeParameters>
+</Attribute>
+</attributes>
+<identifiers itemClass="oracle.dbtools.crest.model.design.logical.CandidateKey">
+<identifier id="278A146E-0E83-8540-D1BD-414CFB2133B5" name="Seller PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 02:42:07 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<shouldEngineer>false</shouldEngineer>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="false"/>
+</engineerTo>
+<pk>true</pk>
+<usedAttributes>
+<attributeRef>7FF3A9AA-3486-15FA-B719-7EB1B8708CF0</attributeRef>
+</usedAttributes>
+</identifier>
+</identifiers>
+</Entity>

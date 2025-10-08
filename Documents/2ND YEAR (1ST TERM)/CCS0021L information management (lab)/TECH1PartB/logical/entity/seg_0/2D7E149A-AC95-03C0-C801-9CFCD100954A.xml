@@ -1,0 +1,75 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Entity class="oracle.dbtools.crest.model.design.logical.Entity" directorySegmentName="seg_0" id="2D7E149A-AC95-03C0-C801-9CFCD100954A" name="Shop">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:03:35 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<adequatelyNormalized>NO</adequatelyNormalized>
+<expectedVolumes>0</expectedVolumes>
+<fwdEngineeringStrategyName>Single Table</fwdEngineeringStrategyName>
+<growthPercent>0</growthPercent>
+<growthType>Year</growthType>
+<maxVolumes>9999999</maxVolumes>
+<minVolumes>0</minVolumes>
+<normalForm>Third</normalForm>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<Attribute name="Shop_Id" id="BF798F83-3D8B-6DAB-ADE9-1B12D815ABD4">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:03:45 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="Shop_Name" id="46F29F0D-A132-A63B-1348-4473787CBDF8">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:04:00 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>50</dataTypeSize>
+<ownDataTypeParameters>50,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="Seller_id" id="8F243F50-AA8D-F6A3-1732-FF6A3A91B276">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:07:07 UTC</createdTime>
+<generatorID>702D27AB-69ED-274E-AA1D-12955102CC9E</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<referedAttribute>7FF3A9AA-3486-15FA-B719-7EB1B8708CF0</referedAttribute>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+</attributes>
+<identifiers itemClass="oracle.dbtools.crest.model.design.logical.CandidateKey">
+<identifier id="E92731A3-417E-E6DC-8B32-C745429DFA95" name="Shop PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:03:58 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<shouldEngineer>false</shouldEngineer>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="false"/>
+</engineerTo>
+<pk>true</pk>
+<usedAttributes>
+<attributeRef>BF798F83-3D8B-6DAB-ADE9-1B12D815ABD4</attributeRef>
+</usedAttributes>
+</identifier>
+</identifiers>
+</Entity>

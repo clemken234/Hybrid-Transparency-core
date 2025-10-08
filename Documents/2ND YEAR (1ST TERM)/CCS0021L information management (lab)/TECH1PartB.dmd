@@ -1,8 +1,8 @@
 <?xml version = '1.0' encoding = 'UTF-8'?>
-<OSDM_Design class="oracle.dbtools.crest.model.design.Design" name="TAPartB" id="AAFDF6B1-184F-EF4A-7B97-7924C6EFA004" version="3.5">
+<OSDM_Design class="oracle.dbtools.crest.model.design.Design" name="TECH1PartB" id="AAFDF6B1-184F-EF4A-7B97-7924C6EFA004" version="3.5">
 <createdBy>Nica08</createdBy>
 <createdTime>2024-10-08 02:39:12 UTC</createdTime>
-<ownerDesignName>TAPartB</ownerDesignName>
+<ownerDesignName>TECH1PartB</ownerDesignName>
 <capitalNames>false</capitalNames>
 <designId>AAFDF6B1-184F-EF4A-7B97-7924C6EFA004</designId>
 </OSDM_Design>

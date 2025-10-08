@@ -1,0 +1,90 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="6F597C22-E457-0EE7-B35A-A97615B78CC0" name="Transaction">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="Book_BookNumber" id="8056F98F-6699-B56A-66BC-A0F9FAF162D0">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="8072A999-D1BE-5F1C-5286-D07AEAD01C33" referredColumn="94D28FDA-23E5-D59F-4B01-2977BDB8DEA2"/>
+</associations>
+</Column>
+<Column name="Patron_PatronNumber" id="83E99730-86AB-F01C-F126-37791EDBE028">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="108939D7-9BB4-E5D3-AD78-35E162387E04" referredColumn="72ACF34D-0863-68D0-7904-CBD1AD14BA52"/>
+</associations>
+</Column>
+<Column name="DueDate" id="8B8B80D1-079B-72B0-C10A-B28D7B42D7E0">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>D42DF84E-B0FA-6F46-75AA-43ED72DE771E</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT007</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+<isRelationshipColumn>true</isRelationshipColumn>
+<isDependOnFK_AsMandatory>true</isDependOnFK_AsMandatory>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="8BB280D4-7F6F-9D54-E962-AAE6054B5AF9" name="Transaction_PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="8056F98F-6699-B56A-66BC-A0F9FAF162D0"/>
+<colUsage columnID="83E99730-86AB-F01C-F126-37791EDBE028"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="D7A10373-EC3B-13F7-7325-78F212F1A855" name="Transaction_Book_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>8E9A2F45-B1BA-F318-C1B3-A7B4FB4EC629</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="8056F98F-6699-B56A-66BC-A0F9FAF162D0"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="DD1B53B0-C2A7-2D7E-7FB1-5F441F4F75C0" name="Transaction_Patron_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>8E9A2F45-B1BA-F318-C1B3-A7B4FB4EC629</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="83E99730-86AB-F01C-F126-37791EDBE028"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

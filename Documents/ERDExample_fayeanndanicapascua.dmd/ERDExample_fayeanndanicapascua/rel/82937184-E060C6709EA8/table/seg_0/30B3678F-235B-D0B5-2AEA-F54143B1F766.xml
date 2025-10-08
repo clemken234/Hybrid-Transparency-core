@@ -1,0 +1,62 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="30B3678F-235B-D0B5-2AEA-F54143B1F766" name="Patron">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>26B544E2-095D-D7EE-1FA5-05786DAA2948</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="PatronNumber" id="72ACF34D-0863-68D0-7904-CBD1AD14BA52">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>88E7FDC1-357A-F851-220B-DC5A8F9584A1</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="PatronFirstName" id="FBA34093-BF59-89D5-224E-913FC1CE4F30">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>541C5D44-93A3-67A7-9EE1-41A3B16EAC22</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>150</dataTypeSize>
+<ownDataTypeParameters>150,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="PatronLastName" id="DA2F2BEC-5EE0-6288-A5DE-A831E9617040">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>930AD976-6E48-58F5-BB82-98D66F54B952</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>150</dataTypeSize>
+<ownDataTypeParameters>150,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="4CFA6332-973A-CAA2-995B-1860BBDEE9FA" name="Patron_PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>B05F2201-D5FE-9230-3702-D7571F9D9A7B</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="72ACF34D-0863-68D0-7904-CBD1AD14BA52"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

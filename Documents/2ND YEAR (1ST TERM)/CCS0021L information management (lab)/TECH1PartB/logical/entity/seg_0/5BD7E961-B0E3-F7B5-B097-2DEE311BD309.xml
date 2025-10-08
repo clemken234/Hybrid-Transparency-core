@@ -1,0 +1,34 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Entity class="oracle.dbtools.crest.model.design.logical.Entity" directorySegmentName="seg_0" id="5BD7E961-B0E3-F7B5-B097-2DEE311BD309" name="Wholesaler">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:00:39 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<adequatelyNormalized>NO</adequatelyNormalized>
+<expectedVolumes>0</expectedVolumes>
+<fwdEngineeringStrategyName>Single Table</fwdEngineeringStrategyName>
+<growthPercent>0</growthPercent>
+<growthType>Year</growthType>
+<hierarchicalParent>6B051C7C-FB75-8139-BE3D-8CD3A841D4B6</hierarchicalParent>
+<maxVolumes>9999999</maxVolumes>
+<minVolumes>0</minVolumes>
+<normalForm>Third</normalForm>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<Attribute name="WholeSalePrice" id="5E27C742-F915-CFED-4CBE-FE04339E09EE">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:01:03 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<engineerTo>
+<item key="30E23296-6D95-9653-3BB3-E5ABDD07917D" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT026</logicalDatatype>
+<dataTypePrecision>10</dataTypePrecision>
+<dataTypeScale>2</dataTypeScale>
+<ownDataTypeParameters>,10,2</ownDataTypeParameters>
+</Attribute>
+</attributes>
+</Entity>

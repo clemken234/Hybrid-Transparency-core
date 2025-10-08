@@ -1,0 +1,61 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="B0741848-E8F0-9823-7D27-64FFEDCBB6E2" name="Author">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>FF1AC641-DF1B-D121-718E-9B1B96F765DF</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="AuthorNumber" id="6561EEEC-25BA-BF98-54C0-325544B44F1F">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>1FE812E7-D35B-5F9E-6B16-204885D2C4D0</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="AuthorName" id="19D7156E-E011-0888-432C-14D5E20A937A">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>E1406A94-7B2D-894B-685B-4B99B234FA41</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>150</dataTypeSize>
+<ownDataTypeParameters>150,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="AuthorLastName" id="5B6DE11F-5500-C3A2-98AA-E123F3210D75">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>5A7ACB54-2400-E0C7-FEF6-072B395F5136</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="024F31EA-A014-E52E-5E1C-ABF5A3E47AA9" name="Author_PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:04:24 UTC</createdTime>
+<generatorID>F203E0DA-3B4B-A2FF-DE57-AE1423600832</generatorID>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="6561EEEC-25BA-BF98-54C0-325544B44F1F"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

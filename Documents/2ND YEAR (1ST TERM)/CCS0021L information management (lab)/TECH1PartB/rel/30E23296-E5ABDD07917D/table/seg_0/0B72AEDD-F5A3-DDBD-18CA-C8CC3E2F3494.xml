@@ -1,0 +1,77 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="0B72AEDD-F5A3-DDBD-18CA-C8CC3E2F3494" name="Shop">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>2D7E149A-AC95-03C0-C801-9CFCD100954A</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="Shop_Id" id="624ADB58-F735-FFE0-B670-F83FB9D1986A">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>BF798F83-3D8B-6DAB-ADE9-1B12D815ABD4</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="Shop_Name" id="5414B1CB-9E20-A604-79E7-81A730ABC77E">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>46F29F0D-A132-A63B-1348-4473787CBDF8</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>50</dataTypeSize>
+<ownDataTypeParameters>50,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="Seller_Seller_id" id="56336997-3754-BB14-04B4-050585256060">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>8F243F50-AA8D-F6A3-1732-FF6A3A91B276</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="B62BD9DB-B493-56B8-CF11-8F64028B95ED" referredColumn="A721D361-DF26-62C0-6A1C-52ABBD5517DA"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="8438877F-ACF6-142A-8F7D-D8FB1428130E" name="Shop_PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>E92731A3-417E-E6DC-8B32-C745429DFA95</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="624ADB58-F735-FFE0-B670-F83FB9D1986A"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="038A8F57-F99F-F672-B7A1-A5C41B60C75C" name="Shop_Seller_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>702D27AB-69ED-274E-AA1D-12955102CC9E</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="56336997-3754-BB14-04B4-050585256060"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

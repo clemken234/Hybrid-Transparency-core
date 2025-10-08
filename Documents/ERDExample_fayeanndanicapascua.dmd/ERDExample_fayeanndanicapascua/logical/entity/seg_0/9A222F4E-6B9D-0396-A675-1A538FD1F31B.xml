@@ -1,0 +1,72 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Entity class="oracle.dbtools.crest.model.design.logical.Entity" directorySegmentName="seg_0" id="9A222F4E-6B9D-0396-A675-1A538FD1F31B" name="Book">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 05:29:39 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="82937184-3FDD-92E8-70C8-E060C6709EA8" value="true"/>
+</engineerTo>
+<adequatelyNormalized>NO</adequatelyNormalized>
+<expectedVolumes>0</expectedVolumes>
+<fwdEngineeringStrategyName>Single Table</fwdEngineeringStrategyName>
+<growthPercent>0</growthPercent>
+<growthType>Year</growthType>
+<maxVolumes>9999999</maxVolumes>
+<minVolumes>0</minVolumes>
+<normalForm>Third</normalForm>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<Attribute name="BookNumber" id="BD5F92BF-2FE4-0754-8119-A5C8864AED2E">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 05:29:58 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="82937184-3FDD-92E8-70C8-E060C6709EA8" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="Title" id="BB69662E-397D-D52F-FAB8-DC1309641E34">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 05:41:59 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="82937184-3FDD-92E8-70C8-E060C6709EA8" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>1000</dataTypeSize>
+<ownDataTypeParameters>1000,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="PageCount" id="E8F3ADDC-0DCF-1409-3F02-4547E1364C40">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 05:42:51 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="82937184-3FDD-92E8-70C8-E060C6709EA8" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>4</dataTypePrecision>
+<ownDataTypeParameters>,4,</ownDataTypeParameters>
+</Attribute>
+</attributes>
+<identifiers itemClass="oracle.dbtools.crest.model.design.logical.CandidateKey">
+<identifier id="D311D449-BC22-5436-0B5A-ECB443BDC32F" name="Book PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 05:41:53 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="82937184-3FDD-92E8-70C8-E060C6709EA8" value="true"/>
+</engineerTo>
+<pk>true</pk>
+<usedAttributes>
+<attributeRef>BD5F92BF-2FE4-0754-8119-A5C8864AED2E</attributeRef>
+</usedAttributes>
+</identifier>
+</identifiers>
+</Entity>

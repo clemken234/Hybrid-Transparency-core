@@ -1,0 +1,46 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Entity class="oracle.dbtools.crest.model.design.logical.Entity" directorySegmentName="seg_0" id="EC6C47A0-9258-4EDF-3CDE-225A8E2D3A64" name="ResponsiblePhysician">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-24 03:05:18 UTC</createdTime>
+<ownerDesignName>PatientEERD</ownerDesignName>
+<engineerTo>
+<item key="E17F6598-AB1F-8ADF-459D-BC1AAFFE595C" value="true"/>
+</engineerTo>
+<adequatelyNormalized>NO</adequatelyNormalized>
+<expectedVolumes>0</expectedVolumes>
+<fwdEngineeringStrategyName>Single Table</fwdEngineeringStrategyName>
+<growthPercent>0</growthPercent>
+<growthType>Year</growthType>
+<maxVolumes>9999999</maxVolumes>
+<minVolumes>0</minVolumes>
+<normalForm>Third</normalForm>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<Attribute name="PhysicianId" id="5FF21E2C-875F-E249-1CBB-029B02C7EAE9">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-24 03:05:42 UTC</createdTime>
+<ownerDesignName>PatientEERD</ownerDesignName>
+<engineerTo>
+<item key="E17F6598-AB1F-8ADF-459D-BC1AAFFE595C" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+</Attribute>
+</attributes>
+<identifiers itemClass="oracle.dbtools.crest.model.design.logical.CandidateKey">
+<identifier id="BAFCBE5F-5960-11A6-7ADC-9E5877D55E59" name="ResponsiblePhysician PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-24 03:06:01 UTC</createdTime>
+<ownerDesignName>PatientEERD</ownerDesignName>
+<engineerTo>
+<item key="E17F6598-AB1F-8ADF-459D-BC1AAFFE595C" value="true"/>
+</engineerTo>
+<pk>true</pk>
+<usedAttributes>
+<attributeRef>5FF21E2C-875F-E249-1CBB-029B02C7EAE9</attributeRef>
+</usedAttributes>
+</identifier>
+</identifiers>
+</Entity>

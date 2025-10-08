@@ -1,0 +1,103 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="E2863ED8-F9FF-A213-44E8-F1782E29AA07" name="Retailer">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>D746AF37-DFDE-B61D-0DE6-121645C26D88</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="RetailPrice" id="45DDC6EA-2EA6-285A-87B4-7D9AF50B76FE">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>6E192B54-F4D5-7D8E-7016-6C8A85BDBE3B</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT026</logicalDatatype>
+<dataTypePrecision>10</dataTypePrecision>
+<dataTypeScale>2</dataTypeScale>
+<ownDataTypeParameters>,10,2</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+</Column>
+<Column name="Seller_Seller_id" id="88B585C6-9C28-EE28-C928-688D77C05149">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>1B4077F7-679C-5EA2-E8A5-4FFD9A5B455E</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="12701A3E-54BA-620E-3B5D-F8D92B0306BE" referredColumn="A721D361-DF26-62C0-6A1C-52ABBD5517DA"/>
+</associations>
+</Column>
+<Column name="Seller_id" id="789FA0E0-5220-9B6A-0A37-0B2D9E4047F1">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:38:12 UTC</createdTime>
+<generatorID>7FF3A9AA-3486-15FA-B719-7EB1B8708CF0</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="4A1BF3B3-81F1-7180-E10F-1D7D2A4772DD" referredColumn="A721D361-DF26-62C0-6A1C-52ABBD5517DA"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="EF2A457E-C670-F779-FEA6-7A70D589BBB7" name="Retailer_PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:38:12 UTC</createdTime>
+<generatorID>278A146E-0E83-8540-D1BD-414CFB2133B5</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="789FA0E0-5220-9B6A-0A37-0B2D9E4047F1"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="C0A01A9C-7CFC-C6C3-AF7D-186518CC06DC" name="Retailer__IDX">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<indexState>Unique Plain Index</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<relationGeneratorID>F281A4BB-8E56-0C50-4E8A-375CA84FB651</relationGeneratorID>
+<indexColumnUsage>
+<colUsage columnID="88B585C6-9C28-EE28-C928-688D77C05149"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="72027CF4-B233-8ED5-9E7A-5BE1CE31C4F0" name="Retailer_Seller_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:18:16 UTC</createdTime>
+<generatorID>F281A4BB-8E56-0C50-4E8A-375CA84FB651</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="88B585C6-9C28-EE28-C928-688D77C05149"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="5B1E133B-1E04-39DC-4E01-E6F3C568765F" name="Retailer_Seller_FKv2">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:38:12 UTC</createdTime>
+<generatorID>142A620D-0F42-CC33-2EF0-6F04ABFC8227</generatorID>
+<ownerDesignName>TECH1PartB</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="789FA0E0-5220-9B6A-0A37-0B2D9E4047F1"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

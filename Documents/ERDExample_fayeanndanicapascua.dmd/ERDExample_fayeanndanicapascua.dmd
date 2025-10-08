@@ -1,0 +1,8 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<OSDM_Design class="oracle.dbtools.crest.model.design.Design" name="ERDExample_fayeanndanicapascua" id="DEE8DBCF-1C47-6E59-06E0-AC86351A5965" version="3.5">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 05:11:36 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<capitalNames>false</capitalNames>
+<designId>DEE8DBCF-1C47-6E59-06E0-AC86351A5965</designId>
+</OSDM_Design>

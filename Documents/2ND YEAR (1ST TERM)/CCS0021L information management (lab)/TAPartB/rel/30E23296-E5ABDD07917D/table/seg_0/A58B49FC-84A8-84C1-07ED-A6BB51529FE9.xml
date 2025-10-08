@@ -1,0 +1,77 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Table class="oracle.dbtools.crest.model.design.relational.Table" directorySegmentName="seg_0" id="A58B49FC-84A8-84C1-07ED-A6BB51529FE9" name="Sell">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:45:20 UTC</createdTime>
+<ownerDesignName>TAPartB</ownerDesignName>
+<allowColumnReorder>false</allowColumnReorder>
+<existDependencyGenerateInDDl>true</existDependencyGenerateInDDl>
+<parsed>true</parsed>
+<columns itemClass="oracle.dbtools.crest.model.design.relational.Column">
+<Column name="Shop_Shop_Id" id="D27C65D4-C40F-5681-1642-4067E53E5E84">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:45:20 UTC</createdTime>
+<ownerDesignName>TAPartB</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="067D3392-6091-2433-56C6-72FE7709077A" referredColumn="624ADB58-F735-FFE0-B670-F83FB9D1986A"/>
+</associations>
+</Column>
+<Column name="Product_Product_Id" id="E12CD4D7-DE8F-E7B6-BA12-11A87EF00EEC">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:45:20 UTC</createdTime>
+<ownerDesignName>TAPartB</ownerDesignName>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+<previousColumn>false</previousColumn>
+<autoIncrementCycle>false</autoIncrementCycle>
+<associations>
+<colAssociation fkAssociation="E0174627-0F84-BCF5-4093-79F7B0A600A4" referredColumn="69A55657-0E47-3969-5E5B-0F7892FF17A3"/>
+</associations>
+</Column>
+</columns>
+<indexes itemClass="oracle.dbtools.crest.model.design.relational.Index">
+<ind_PK_UK id="A7773A6B-32C9-4861-D80A-BC9E12B18BE4" name="Sell_PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:45:20 UTC</createdTime>
+<ownerDesignName>TAPartB</ownerDesignName>
+<pk>true</pk>
+<indexState>Primary Constraint</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="D27C65D4-C40F-5681-1642-4067E53E5E84"/>
+<colUsage columnID="E12CD4D7-DE8F-E7B6-BA12-11A87EF00EEC"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="93A30F7E-F9C6-5C5D-5B42-70BD73CF56E8" name="Sell_Shop_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:45:20 UTC</createdTime>
+<generatorID>567ABE45-590A-B5B0-13DD-ED0F490CC1CD</generatorID>
+<ownerDesignName>TAPartB</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="D27C65D4-C40F-5681-1642-4067E53E5E84"/>
+</indexColumnUsage>
+</ind_PK_UK>
+<ind_PK_UK id="325831B8-5BA9-451B-19C3-266A1D258F91" name="Sell_Product_FK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-10-08 03:45:20 UTC</createdTime>
+<generatorID>567ABE45-590A-B5B0-13DD-ED0F490CC1CD</generatorID>
+<ownerDesignName>TAPartB</ownerDesignName>
+<indexState>Foreign Key</indexState>
+<isSurrogateKey>false</isSurrogateKey>
+<indexColumnUsage>
+<colUsage columnID="E12CD4D7-DE8F-E7B6-BA12-11A87EF00EEC"/>
+</indexColumnUsage>
+</ind_PK_UK>
+</indexes>
+</Table>

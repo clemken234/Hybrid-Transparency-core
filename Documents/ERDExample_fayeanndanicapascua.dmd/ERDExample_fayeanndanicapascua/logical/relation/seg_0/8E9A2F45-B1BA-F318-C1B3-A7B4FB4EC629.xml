@@ -1,0 +1,32 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Relation class="oracle.dbtools.crest.model.design.logical.Relation" name="Transaction" directorySegmentName="seg_0" id="8E9A2F45-B1BA-F318-C1B3-A7B4FB4EC629">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 05:57:57 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="82937184-3FDD-92E8-70C8-E060C6709EA8" value="true"/>
+</engineerTo>
+<identifying>false</identifying>
+<optionalSource>false</optionalSource>
+<optionalTarget>true</optionalTarget>
+<sourceCardinality>*</sourceCardinality>
+<sourceEntity>9A222F4E-6B9D-0396-A675-1A538FD1F31B</sourceEntity>
+<targetCardinalityString>*</targetCardinalityString>
+<targetEntity>26B544E2-095D-D7EE-1FA5-05786DAA2948</targetEntity>
+<transferable>true</transferable>
+<deleteRule>NO ACTION</deleteRule>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<attribute name="DueDate" id="D42DF84E-B0FA-6F46-75AA-43ED72DE771E">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-13 06:01:18 UTC</createdTime>
+<ownerDesignName>ERDExample_fayeanndanicapascua</ownerDesignName>
+<engineerTo>
+<item key="82937184-3FDD-92E8-70C8-E060C6709EA8" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT007</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</attribute>
+</attributes>
+</Relation>

@@ -1,0 +1,99 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<Entity class="oracle.dbtools.crest.model.design.logical.Entity" directorySegmentName="seg_0" id="0B7A0F71-5EE5-2016-7574-D89C54976561" name="Patient">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-24 02:56:37 UTC</createdTime>
+<ownerDesignName>PatientEERD</ownerDesignName>
+<engineerTo>
+<item key="E17F6598-AB1F-8ADF-459D-BC1AAFFE595C" value="true"/>
+</engineerTo>
+<adequatelyNormalized>NO</adequatelyNormalized>
+<expectedVolumes>0</expectedVolumes>
+<fwdEngineeringStrategyName>Single Table</fwdEngineeringStrategyName>
+<growthPercent>0</growthPercent>
+<growthType>Year</growthType>
+<maxVolumes>9999999</maxVolumes>
+<minVolumes>0</minVolumes>
+<normalForm>Third</normalForm>
+<attributes itemClass="oracle.dbtools.crest.model.design.logical.Attribute">
+<Attribute name="PatientId" id="EED2ACF6-1D89-742E-3FED-28BE3FDF190C">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-24 02:57:03 UTC</createdTime>
+<ownerDesignName>PatientEERD</ownerDesignName>
+<engineerTo>
+<item key="E17F6598-AB1F-8ADF-459D-BC1AAFFE595C" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,11,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="PatientFirstName" id="D4D15406-A2B4-EC05-41CE-377AD6C98D2F">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-24 02:57:44 UTC</createdTime>
+<ownerDesignName>PatientEERD</ownerDesignName>
+<engineerTo>
+<item key="E17F6598-AB1F-8ADF-459D-BC1AAFFE595C" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>200</dataTypeSize>
+<ownDataTypeParameters>200,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="PatientLastName" id="81F3240D-47D2-CD10-7BE9-9C8C0D066297">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-24 02:58:04 UTC</createdTime>
+<ownerDesignName>PatientEERD</ownerDesignName>
+<engineerTo>
+<item key="E17F6598-AB1F-8ADF-459D-BC1AAFFE595C" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT024</logicalDatatype>
+<dataTypeSize>200</dataTypeSize>
+<ownDataTypeParameters>200,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="AdmitDate" id="049F1021-148B-82D1-ABCF-94A30E0873EE">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-24 02:58:43 UTC</createdTime>
+<ownerDesignName>PatientEERD</ownerDesignName>
+<engineerTo>
+<item key="E17F6598-AB1F-8ADF-459D-BC1AAFFE595C" value="true"/>
+</engineerTo>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT007</logicalDatatype>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+<Attribute name="PhysicianId" id="68D4092D-7575-7A97-3C92-E033769CC3B9">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-24 03:18:00 UTC</createdTime>
+<generatorID>32557EE9-EDCF-653C-F19B-BC989E7F8E85</generatorID>
+<ownerDesignName>PatientEERD</ownerDesignName>
+<engineerTo>
+<item key="E17F6598-AB1F-8ADF-459D-BC1AAFFE595C" value="true"/>
+</engineerTo>
+<referedAttribute>5FF21E2C-875F-E249-1CBB-029B02C7EAE9</referedAttribute>
+<useDomainConstraints>false</useDomainConstraints>
+<use>1</use>
+<logicalDatatype>LOGDT019</logicalDatatype>
+<dataTypePrecision>11</dataTypePrecision>
+<ownDataTypeParameters>,,</ownDataTypeParameters>
+</Attribute>
+</attributes>
+<identifiers itemClass="oracle.dbtools.crest.model.design.logical.CandidateKey">
+<identifier id="B92DB640-0ABD-9457-CBBA-3BF95CB22FDB" name="Patient PK">
+<createdBy>Nica08</createdBy>
+<createdTime>2024-09-24 02:57:11 UTC</createdTime>
+<ownerDesignName>PatientEERD</ownerDesignName>
+<engineerTo>
+<item key="E17F6598-AB1F-8ADF-459D-BC1AAFFE595C" value="true"/>
+</engineerTo>
+<pk>true</pk>
+<usedAttributes>
+<attributeRef>EED2ACF6-1D89-742E-3FED-28BE3FDF190C</attributeRef>
+</usedAttributes>
+</identifier>
+</identifiers>
+</Entity>
