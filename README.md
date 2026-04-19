@@ -48,5 +48,13 @@ hybrid-transparency/
 └── README.md
 Diagram of the system: https://app.eraser.io/workspace/YftjwOIfE3uFNa5aTSfs?origin=share 
 
+# Install root dependencies
+npm install
+
+# Arm the Web Apps
+cd web-citizen && npm install
+cd ../web-admin && npm install
+cd ../contracts && npm install
+
 Wait for futher update on setup instructions, thank you.
 ```
