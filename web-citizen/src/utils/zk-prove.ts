@@ -44,8 +44,6 @@ export async function generateIdentityProof(
     return {
       proof: "0x" + Buffer.from(proof.proof).toString('hex'),
       publicInputs: proof.publicInputs,
-      // The nullifier is the first public output (return value)
-      nullifier: proof.publicInputs[0] 
     };
   } catch (error) {
     console.error("❌ ZK Proof Generation failed:", error);

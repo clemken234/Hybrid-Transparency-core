@@ -1,4 +1,4 @@
-use std::hash::poseidon::bn254;
+use std::hash::poseidon2::Poseidon2;
 
 fn main(
     // --- PRIVATE WITNESSES ---
@@ -11,9 +11,11 @@ fn main(
     public_merkle_root: pub Field
 ) {
     // CONSTRAINT 1: Leaf Reconstruction
-    let computed_leaf = bn254::hash_3([secret, private_license_data, public_name]);
+    // Poseidon2 with 3 inputs — matches bb.js poseidon2Hash([secret, private_license_data, public_name])
+    let computed_leaf = Poseidon2::hash([secret, private_license_data, public_name], 3);
 
     // CONSTRAINT 2: Merkle Inclusion Proof (Manual Loop)
+    // Poseidon2 with 2 inputs — matches bb.js poseidon2Hash([left, right])
     let mut computed_root = computed_leaf;
     let mut index = leaf_index;
 
@@ -21,9 +23,9 @@ fn main(
         let sibling = merkle_path[i];
 
         if index % 2 == 0 {
-            computed_root = bn254::hash_2([computed_root, sibling]);
+            computed_root = Poseidon2::hash([computed_root, sibling], 2);
         } else {
-            computed_root = bn254::hash_2([sibling, computed_root]);
+            computed_root = Poseidon2::hash([sibling, computed_root], 2);
         }
 
         index = index / 2;

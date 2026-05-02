@@ -20,8 +20,8 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 /**
- * Computes the Merkle leaf commitment: Poseidon3(secret, private_license_data, public_name).
- * Must match the formula in circuits/src/main.nr (bn254::hash_3) and crypto.js exactly.
+ * Computes the Merkle leaf commitment: Poseidon2([secret, private_license_data, public_name]).
+ * Uses bb.js poseidon2Hash — matches circuits/src/main.nr and the Aztec backend exactly.
  */
 export async function createFinalMerkleLeaf(
   secret: string,
@@ -40,7 +40,6 @@ export async function createFinalMerkleLeaf(
   });
 
   await bb.destroy();
-  // result.hash is a Uint8Array — convert to 0x hex string
   return "0x" + Array.from(result.hash).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 

@@ -24,29 +24,34 @@ async function buildMerklePath(leaves: string[], leafIndex: number): Promise<str
     return BigInt("0x" + Array.from(result.hash).map((b: number) => b.toString(16).padStart(2, "0")).join(""));
   };
 
-  const size = Math.pow(2, TREE_DEPTH);
-  const nodes: bigint[] = Array(size).fill(0n);
-  for (let i = 0; i < leaves.length; i++) nodes[i] = BigInt(leaves[i]);
+  // Sparse map: only store non-zero nodes to avoid allocating 2^20 entries.
+  let level: Map<number, bigint> = new Map();
+  for (let i = 0; i < leaves.length; i++) {
+    const v = BigInt(leaves[i]);
+    if (v !== 0n) level.set(i, v);
+  }
 
   const path: string[] = [];
   let idx = leafIndex;
 
-  for (let level = 0; level < TREE_DEPTH; level++) {
+  for (let d = 0; d < TREE_DEPTH; d++) {
     const siblingIdx = idx % 2 === 0 ? idx + 1 : idx - 1;
-    path.push(toFieldHex(nodes[siblingIdx]));
+    path.push(toFieldHex(level.get(siblingIdx) ?? 0n));
 
-    const nextSize = Math.ceil(nodes.length / 2);
-    const nextNodes: bigint[] = Array(nextSize).fill(0n);
-    for (let i = 0; i < nextSize; i++) {
-      const l = nodes[2 * i] ?? 0n;
-      const r = nodes[2 * i + 1] ?? 0n;
-      nextNodes[i] = await hashPair(l, r);
+    const nextLevel: Map<number, bigint> = new Map();
+    const parents = new Set([...level.keys()].map(k => Math.floor(k / 2)));
+    // Always include the parent of the current node so the path stays consistent.
+    parents.add(Math.floor(idx / 2));
+
+    for (const p of parents) {
+      const l = level.get(p * 2) ?? 0n;
+      const r = level.get(p * 2 + 1) ?? 0n;
+      const hash = (l === 0n && r === 0n) ? 0n : await hashPair(l, r);
+      if (hash !== 0n) nextLevel.set(p, hash);
     }
-    const paddedNext: bigint[] = Array(size).fill(0n);
-    for (let i = 0; i < nextNodes.length; i++) paddedNext[i] = nextNodes[i];
 
     idx = Math.floor(idx / 2);
-    nodes.splice(0, nodes.length, ...paddedNext);
+    level = nextLevel;
   }
 
   await bb.destroy();
@@ -105,7 +110,7 @@ export default function ProvePage() {
       localStorage.setItem("citizen_license", JSON.stringify(updated));
 
       const history = JSON.parse(localStorage.getItem("proof_history") || "[]");
-      history.unshift({ nullifier: result.nullifier, ts: Date.now() });
+      history.unshift({ ts: Date.now() });
       localStorage.setItem("proof_history", JSON.stringify(history.slice(0, 20)));
 
       setProofData(result);
@@ -263,8 +268,8 @@ export default function ProvePage() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div>
-                    <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 5 }}>Nullifier Hash</span>
-                    <code style={{ display: "block", background: "rgba(0,0,0,.25)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 11, fontFamily: "var(--font-mono)", color: "oklch(0.72 0.18 200)", wordBreak: "break-all", lineHeight: 1.7 }}>{proofData.nullifier}</code>
+                    <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 5 }}>Public Inputs</span>
+                    <code style={{ display: "block", background: "rgba(0,0,0,.25)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 11, fontFamily: "var(--font-mono)", color: "oklch(0.72 0.18 200)", wordBreak: "break-all", lineHeight: 1.7 }}>{proofData.publicInputs?.[0] ?? "—"}</code>
                   </div>
                   <div>
                     <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 5 }}>Proof Bytes (truncated)</span>
