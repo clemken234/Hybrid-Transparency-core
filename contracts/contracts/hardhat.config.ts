@@ -1,25 +1,18 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 
+// Private Key (Don't Reveal)
+const PRIVATE_KEY = "YOUR_METAMASK_PRIVATE_KEY_HERE"; 
+const ALCHEMY_SEPOLIA_URL = "YOUR_ALCHEMY_HTTPS_URL_HERE";
+
 const config: HardhatUserConfig = {
-  solidity: {
-    version: "0.8.28",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200, // This compresses the Verifier bytecode
-      },
-    },
-  },
+  solidity: "0.8.20", // Make sure this matches your contract version
   networks: {
-    hardhat: {
-      allowUnlimitedContractSize: true, // This bypasses the 24KB limit
-    },
-    localhost: {
-      url: "http://127.0.0.1:8545",
-      allowUnlimitedContractSize: true, // Crucial for your local node
-    },
-  },
+    sepolia: {
+      url: ALCHEMY_SEPOLIA_URL,
+      accounts: [PRIVATE_KEY]
+    }
+  }
 };
 
 export default config;
