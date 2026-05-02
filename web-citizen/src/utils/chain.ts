@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 
 const REGISTRY_ABI = [
+  "event LicenseIssued(address indexed executor, uint256 indexed leafCommitment, uint256 timestamp)",
   "function issueLicense(uint256 leafCommitment) public",
   "function getAllLeaves() public view returns (uint256[] memory)",
   "function getRoot() public view returns (uint256)",
@@ -32,13 +33,20 @@ export async function fetchAllLeaves() {
   }
 }
 
-export async function fetchRoot() {
+export async function fetchRoot(): Promise<string | null> {
   try {
     const contract = await getContract();
     const root = await contract.getRoot();
     return "0x" + BigInt(root).toString(16).padStart(64, '0');
-  } catch (error) {
-    console.error("Failed to fetch root from chain:", error);
-    return "0x0";
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAllLeavesSafe(): Promise<string[]> {
+  try {
+    return await fetchAllLeaves();
+  } catch {
+    return [];
   }
 }

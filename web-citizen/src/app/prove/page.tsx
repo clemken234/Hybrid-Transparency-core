@@ -9,19 +9,11 @@ import { toFieldHex } from "@/lib/commitment";
 const TREE_DEPTH = 20;
 
 async function buildMerklePath(leaves: string[], leafIndex: number): Promise<string[]> {
-  const { Barretenberg } = await import("@aztec/bb.js");
-  const bb = await Barretenberg.new({ threads: 1 });
+  const { poseidon2 } = await import("poseidon-lite");
 
-  const bigintToBytes = (n: bigint): Uint8Array => {
-    const hex = n.toString(16).padStart(64, "0");
-    const bytes = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-    return bytes;
-  };
-
-  const hashPair = async (l: bigint, r: bigint): Promise<bigint> => {
-    const result = await bb.poseidon2Hash({ inputs: [bigintToBytes(l), bigintToBytes(r)] });
-    return BigInt("0x" + Array.from(result.hash).map((b: number) => b.toString(16).padStart(2, "0")).join(""));
+  const hashPair = (l: bigint, r: bigint): bigint => {
+    const result = poseidon2([l, r]);
+    return BigInt("0x" + result.toString(16).padStart(64, "0"));
   };
 
   // Sparse map: only store non-zero nodes to avoid allocating 2^20 entries.
@@ -40,13 +32,12 @@ async function buildMerklePath(leaves: string[], leafIndex: number): Promise<str
 
     const nextLevel: Map<number, bigint> = new Map();
     const parents = new Set([...level.keys()].map(k => Math.floor(k / 2)));
-    // Always include the parent of the current node so the path stays consistent.
     parents.add(Math.floor(idx / 2));
 
     for (const p of parents) {
       const l = level.get(p * 2) ?? 0n;
       const r = level.get(p * 2 + 1) ?? 0n;
-      const hash = (l === 0n && r === 0n) ? 0n : await hashPair(l, r);
+      const hash = (l === 0n && r === 0n) ? 0n : hashPair(l, r);
       if (hash !== 0n) nextLevel.set(p, hash);
     }
 
@@ -54,7 +45,6 @@ async function buildMerklePath(leaves: string[], leafIndex: number): Promise<str
     level = nextLevel;
   }
 
-  await bb.destroy();
   return path;
 }
 
@@ -84,21 +74,24 @@ export default function ProvePage() {
     setCurrentStep(0);
 
     try {
+      const secret = sessionStorage.getItem("unlocked_secret");
+      if (!secret) throw new Error("Session expired. Please log in again.");
+
       const [leaves, root] = await Promise.all([fetchAllLeaves(), fetchRoot()]);
-      if (!leaves.length) throw new Error("No leaves found on chain. Wait for admin to anchor your identity.");
+      if (!leaves.length) throw new Error("No leaves found on chain. Please wait for your identity to be anchored.");
 
       const leafHash = citizen.leafHash || citizen.leaf_hash;
       if (!leafHash) throw new Error("No leaf hash stored. Complete registration first.");
 
       const leafIndex = leaves.findIndex((l: string) => l.toLowerCase() === leafHash.toLowerCase());
-      if (leafIndex === -1) throw new Error("Your identity is not yet anchored to the blockchain. Contact your LTO officer.");
+      if (leafIndex === -1) throw new Error("Your identity is not yet anchored to the blockchain. Please wait for confirmation.");
 
       setCurrentStep(1);
       const merklePath = await buildMerklePath(leaves, leafIndex);
 
       setCurrentStep(2);
       const result = await generateIdentityProof(
-        citizen.secret,
+        secret,
         citizen.private_license_data,
         merklePath,
         leafIndex,

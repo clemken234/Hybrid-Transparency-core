@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { generateSecret, createFinalMerkleLeaf, stringToFieldHex } from "@/lib/commitment";
 import { encryptSecret } from "@/utils/crypto";
+import { secretToMnemonic } from "@/utils/mnemonic";
 import mockCitizens, { type CitizenSubject } from "@/lib/mockData";
 
-type Step = "select" | "password" | "committing" | "done";
+type Step = "select" | "password" | "committing" | "backup" | "done";
 
 const KakuhoLogo = ({ size = 38 }: { size?: number }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -35,8 +36,27 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<{ leafHash: string; subject: CitizenSubject } | null>(null);
+  const [mnemonic, setMnemonic] = useState<string[]>([]);
+  const [phraseRevealed, setPhraseRevealed] = useState(false);
+  const [phraseSaved, setPhraseSaved] = useState(false);
 
-  const pwStrength = password.length === 0 ? 0 : password.length < 6 ? 1 : password.length < 10 ? 2 : password.length < 14 ? 3 : 4;
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const getStrength = (pw: string) => {
+    if (!pw) return 0;
+    let s = 0;
+    if (pw.length >= 8) s++;
+    if (/[A-Z]/.test(pw)) s++;
+    if (/[a-z]/.test(pw)) s++;
+    if (/[0-9]/.test(pw)) s++;
+    if (/[^A-Za-z0-9]/.test(pw)) s++;
+    if (s <= 2) return 1;
+    if (s === 3) return 2;
+    if (s === 4) return 3;
+    return 4;
+  };
+  const pwStrength = getStrength(password);
   const strengthColors = ["", "#ef4444", "#f97316", "#eab308", "#22c55e"];
   const strengthLabels = ["", "Weak", "Fair", "Good", "Strong"];
 
@@ -70,6 +90,7 @@ export default function RegisterPage() {
 
       setProgress(100);
       const encryptedSecret = await encryptSecret(secret, password);
+      const words = secretToMnemonic(secret).split(" ");
 
       localStorage.setItem("citizen_license", JSON.stringify({
         encrypted_secret: encryptedSecret,
@@ -78,8 +99,9 @@ export default function RegisterPage() {
         subject, merkle_path: null, leaf_index: null, public_merkle_root: null,
       }));
 
+      setMnemonic(words);
       setResult({ leafHash, subject });
-      setTimeout(() => setStep("done"), 300);
+      setTimeout(() => setStep("backup"), 300);
     } catch (err: unknown) {
       setError((err as Error).message || "Something went wrong.");
       setStep("password");
@@ -125,6 +147,71 @@ export default function RegisterPage() {
     );
   }
 
+  /* ── Backup phrase screen ── */
+  if (step === "backup" && mnemonic.length > 0) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, position: "relative" }}>
+        <div className="grid-bg" />
+        <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 480, display: "flex", flexDirection: "column", gap: 20 }} className="anim-fade-up">
+
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 16, background: "rgba(249,115,22,.1)", border: "1.5px solid rgba(249,115,22,.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="22" height="22" fill="none" stroke="var(--orange)" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+            </div>
+            <div>
+              <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", letterSpacing: "-.02em" }}>Secret Recovery Phrase</h1>
+              <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>Write these 24 words down. Keep them safe.</p>
+            </div>
+          </div>
+
+          {/* Warning */}
+          <div style={{ background: "rgba(239,68,68,.06)", border: "1.5px solid rgba(239,68,68,.2)", borderRadius: 14, padding: "12px 16px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <svg style={{ flexShrink: 0, marginTop: 1 }} width="14" height="14" fill="#f87171" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 13h-2v-2h2v2zm0-4h-2V7h2v4z" /></svg>
+            <p style={{ fontSize: 12, color: "#f87171", lineHeight: 1.6 }}>Never share these words. Anyone with this phrase can access your wallet on any device. Kakuho cannot recover them for you.</p>
+          </div>
+
+          {/* Word grid */}
+          <div style={{ background: "var(--bg2)", border: "1.5px solid var(--border2)", borderRadius: 16, padding: 16, position: "relative", overflow: "hidden" }}>
+            {!phraseRevealed && (
+              <div style={{ position: "absolute", inset: 0, background: "rgba(13,15,20,.85)", backdropFilter: "blur(10px)", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, borderRadius: 16 }}>
+                <svg width="28" height="28" fill="none" stroke="var(--text3)" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                <p style={{ fontSize: 13, color: "var(--text3)", fontWeight: 600 }}>Phrase hidden</p>
+                <button onClick={() => setPhraseRevealed(true)} className="btn-kk btn-orange" style={{ fontSize: 12, padding: "8px 20px" }}>Reveal Phrase</button>
+              </div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+              {mnemonic.map((word, i) => (
+                <div key={i} style={{ background: "rgba(255,255,255,.03)", border: "1px solid var(--border)", borderRadius: 10, padding: "7px 8px", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text3)", minWidth: 16, textAlign: "right" }}>{i + 1}.</span>
+                  <span style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text)", fontWeight: 600 }}>{word}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Confirm saved */}
+          <div onClick={() => setPhraseSaved(s => !s)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: phraseSaved ? "rgba(34,197,94,.06)" : "rgba(255,255,255,.02)", border: `1.5px solid ${phraseSaved ? "rgba(34,197,94,.25)" : "var(--border)"}`, borderRadius: 12, cursor: "pointer", transition: "all .2s" }}>
+            <div style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${phraseSaved ? "var(--green)" : "var(--border2)"}`, background: phraseSaved ? "rgba(34,197,94,.15)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all .2s" }}>
+              {phraseSaved && <svg width="12" height="12" fill="none" stroke="#4ade80" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+            </div>
+            <p style={{ fontSize: 12, color: phraseSaved ? "var(--text)" : "var(--text3)", fontWeight: 600, lineHeight: 1.5 }}>I have written down my 24-word recovery phrase in a safe place.</p>
+          </div>
+
+          <button
+            className="btn-kk btn-orange"
+            style={{ width: "100%", opacity: (!phraseRevealed || !phraseSaved) ? 0.4 : 1, cursor: (!phraseRevealed || !phraseSaved) ? "not-allowed" : "pointer" }}
+            disabled={!phraseRevealed || !phraseSaved}
+            onClick={() => setStep("done")}
+          >
+            Continue to Wallet
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   /* ── Done screen ── */
   if (step === "done" && result) {
     return (
@@ -138,7 +225,7 @@ export default function RegisterPage() {
             <div>
               <h1 style={{ fontSize: 26, fontWeight: 700, color: "var(--text)", letterSpacing: "-.02em" }}>Wallet Created!</h1>
               <p style={{ fontSize: 13, color: "var(--text2)", marginTop: 2 }}>
-                Submitted as <strong style={{ color: "var(--text)" }}>{result.subject.firstName} {result.subject.lastName}</strong>. Wait for LTO admin to anchor to blockchain.
+                Submitted as <strong style={{ color: "var(--text)" }}>{result.subject.firstName} {result.subject.lastName}</strong>.
               </p>
             </div>
           </div>
@@ -156,7 +243,7 @@ export default function RegisterPage() {
 
           <div style={{ background: "rgba(34,197,94,.04)", border: "1.5px solid rgba(34,197,94,.15)", borderRadius: 14, padding: "14px 16px", display: "flex", gap: 12, alignItems: "flex-start" }}>
             <svg style={{ flexShrink: 0, marginTop: 2 }} width="15" height="15" fill="none" stroke="#4ade80" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-            <p style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.6 }}>Your private secret is encrypted locally with your password — just like MetaMask. Use your password to log in.</p>
+            <p style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.6 }}>Your private secret is encrypted locally with your password. Use your password to log in.</p>
           </div>
 
           <button className="btn-kk btn-orange" style={{ width: "100%" }} onClick={() => router.push("/login")}>
@@ -203,8 +290,17 @@ export default function RegisterPage() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                 <label className="kk-label">New Password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                  placeholder="Minimum 8 characters" required minLength={8} className="kk-input" />
+                <div style={{ position: "relative" }}>
+                  <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)}
+                    placeholder="Minimum 8 characters" required minLength={8} className="kk-input" style={{ paddingRight: 44 }} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text3)", cursor: "pointer", padding: 0 }}>
+                    {showPassword ? (
+                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                    ) : (
+                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    )}
+                  </button>
+                </div>
                 {password.length > 0 && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     <div style={{ display: "flex", gap: 3 }}>
@@ -219,8 +315,17 @@ export default function RegisterPage() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                 <label className="kk-label">Confirm Password</label>
-                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat password" required className="kk-input" />
+                <div style={{ position: "relative" }}>
+                  <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat password" required className="kk-input" style={{ paddingRight: 44 }} />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text3)", cursor: "pointer", padding: 0 }}>
+                    {showConfirmPassword ? (
+                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                    ) : (
+                      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    )}
+                  </button>
+                </div>
               </div>
 
               <button type="submit" className="btn-kk btn-orange" style={{ width: "100%", marginTop: 4 }}>Create Wallet</button>
@@ -250,7 +355,7 @@ export default function RegisterPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }} className="anim-fade-up">
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text)", letterSpacing: "-.025em", lineHeight: 1.15 }}>Register Identity</h1>
-            <p style={{ fontSize: 13, color: "var(--text2)", marginTop: 8, lineHeight: 1.6 }}>Select your pre-approved identity from the LTO registry to create your ZK wallet.</p>
+            <p style={{ fontSize: 13, color: "var(--text2)", marginTop: 8, lineHeight: 1.6 }}>Select your pre-approved identity to create your secure wallet.</p>
           </div>
 
           {/* Citizen dropdown */}
@@ -347,7 +452,7 @@ export default function RegisterPage() {
             <div className="kk-card" style={{ padding: 18, borderColor: "rgba(249,115,22,.15)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                 <span className="kk-label">Credential Preview</span>
-                <span className="badge-kk badge-orange">LTO Registry</span>
+                <span className="badge-kk badge-orange">Identity Registry</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 16px" }}>
                 {([["License ID", selected.licenseID], ["Blood Type", selected.bloodType], ["Date of Birth", selected.dateOfBirth], ["City", selected.addressCity], ["License Type", selected.licenseType], ["Expires", selected.expirationDate]] as [string, string][]).map(([l, v]) => (

@@ -1,3 +1,5 @@
+import { poseidon3 } from "poseidon-lite";
+
 /**
  * Generates a cryptographically secure 256-bit secret for the citizen.
  * Uses the browser's built-in CSPRNG (crypto.getRandomValues).
@@ -8,39 +10,21 @@ export function generateSecret(): string {
   return "0x" + Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Converts a 0x hex string to a 32-byte Uint8Array for bb.js Field inputs. */
-function hexToBytes(hex: string): Uint8Array {
-  const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
-  const padded = clean.padStart(64, "0");
-  const bytes = new Uint8Array(32);
-  for (let i = 0; i < 32; i++) {
-    bytes[i] = parseInt(padded.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
-}
-
 /**
- * Computes the Merkle leaf commitment: Poseidon2([secret, private_license_data, public_name]).
- * Uses bb.js poseidon2Hash — matches circuits/src/main.nr and the Aztec backend exactly.
+ * Computes the Merkle leaf commitment: Poseidon([secret, private_license_data, public_name]).
+ * Uses poseidon-lite (bn254 / Poseidon x5) — matches circuits/src/main.nr bn254::hash_3.
  */
-export async function createFinalMerkleLeaf(
+export function createFinalMerkleLeaf(
   secret: string,
   privateLicenseData: string,
   publicName: string
-): Promise<string> {
-  const { Barretenberg } = await import("@aztec/bb.js");
-  const bb = await Barretenberg.new({ threads: 1 });
-
-  const result = await bb.poseidon2Hash({
-    inputs: [
-      hexToBytes(secret),
-      hexToBytes(privateLicenseData),
-      hexToBytes(publicName),
-    ],
-  });
-
-  await bb.destroy();
-  return "0x" + Array.from(result.hash).map(b => b.toString(16).padStart(2, "0")).join("");
+): string {
+  const hash = poseidon3([
+    BigInt(secret),
+    BigInt(privateLicenseData),
+    BigInt(publicName),
+  ]);
+  return "0x" + hash.toString(16).padStart(64, "0");
 }
 
 /**
@@ -49,12 +33,10 @@ export async function createFinalMerkleLeaf(
  */
 export function toFieldHex(value: string | number | bigint): string {
   if (typeof value === 'string' && value.startsWith('0x')) {
-    // Already hex — just pad to 32 bytes
     return '0x' + value.slice(2).padStart(64, '0');
   }
 
   if (typeof value === 'string') {
-    // Try numeric string first
     const asNum = BigInt(value);
     return '0x' + asNum.toString(16).padStart(64, '0');
   }

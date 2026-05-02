@@ -95,7 +95,7 @@ export default function Home() {
                 <span style={{ color: "var(--orange)" }}>Your Proof.</span>
               </h1>
               <p style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.7, marginTop: 16, maxWidth: 400 }}>
-                ZK-SNARK digital credential anchored to the blockchain. Your secret never leaves your device.
+                Digital credential anchored to the blockchain. Your private data never leaves your device.
               </p>
             </div>
 

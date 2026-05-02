@@ -7,7 +7,7 @@
 //   SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
 //   DEPLOYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 
-const { ethers } = require("hardhat");
+import { ethers } from "hardhat";
 
 async function main() {
   const verifierArg = process.argv[2] || "0x0000000000000000000000000000000000000000";

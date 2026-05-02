@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import jsQR from "jsqr";
 import { Html5Qrcode } from "html5-qrcode";
 import { QRCodeSVG } from "qrcode.react";
-import { fetchRoot } from "@/utils/chain";
+import { fetchRoot, getContract } from "@/utils/chain";
 
 /* ── Logo ── */
 const KakuhoLogo = ({ size = 34 }: { size?: number }) => (
@@ -38,8 +38,8 @@ const ConnectionsView = () => (
           <svg width="26" height="26" fill="var(--orange)" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
         </div>
         <div style={{ flex: 1 }}>
-          <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, lineHeight: 1.4 }}>Republic of the Philippines<br />Land Transportation Office</p>
-          <p style={{ fontSize: 10, color: "var(--text3)", marginTop: 4, letterSpacing: ".08em", textTransform: "uppercase" }}>Verified Identity Registry</p>
+          <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, lineHeight: 1.4 }}>National Identity Provider</p>
+          <p style={{ fontSize: 10, color: "var(--text3)", marginTop: 4, letterSpacing: ".08em", textTransform: "uppercase" }}>Identity Registry</p>
         </div>
         <span className="badge-kk badge-green">
           <div style={{ width: 7, height: 7, borderRadius: "50%" }} className="dot-green anim-pulse" />
@@ -278,13 +278,6 @@ const CredentialCard = ({ data, onAlert }: { data: any; onAlert?: (type: "succes
                 <code style={{ fontSize: 8, fontFamily: "var(--font-mono)", color: "rgba(249,115,22,.65)", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{registryHash.slice(0, 18)}…</code>
                 <svg width="10" height="10" fill="none" stroke={copied === "Hash" ? "#4ade80" : "rgba(255,255,255,.3)"} strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
               </button>
-              <button onClick={e => handleCopy(e, data.secret || "", "Secret")} style={{ width: "100%", background: "rgba(239,68,68,.05)", border: "1.5px solid rgba(239,68,68,.15)", borderRadius: 8, padding: "5px 8px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-                <span style={{ fontSize: 7, fontWeight: 700, color: "rgba(239,68,68,.6)", letterSpacing: ".08em", textTransform: "uppercase" }}>Private Secret</span>
-                <code style={{ fontSize: 8, fontFamily: "var(--font-mono)", color: "rgba(239,68,68,.55)", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {data.secret ? "•••••••••••••••••••" : "Not unlocked"}
-                </code>
-                <svg width="10" height="10" fill="none" stroke={copied === "Secret" ? "#4ade80" : "rgba(239,68,68,.3)"} strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-              </button>
             </div>
           </div>
         </div>
@@ -302,16 +295,15 @@ export default function WalletPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
+  const [hasUnread, setHasUnread] = useState(false);
   const [notifications, setNotifications] = useState([
-    { id: 1, title: "Identity Anchored", desc: "Your credential is now secured on-chain.", time: "2m ago" },
     { id: 2, title: "Vault Activated", desc: "Digital wallet initialized successfully.", time: "1h ago" },
   ]);
   const [alert, setAlert] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [showQRShare, setShowQRShare] = useState(false);
   const [chainRoot, setChainRoot] = useState<string | null>(null);
   const [rootSyncing, setRootSyncing] = useState(false);
-  const [proofHistory, setProofHistory] = useState<{ nullifier: string; ts: number }[]>([]);
+  const [proofHistory, setProofHistory] = useState<{ ts: number }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -349,6 +341,42 @@ export default function WalletPage() {
       setChainRoot(root || null);
     }).catch(() => {}).finally(() => setRootSyncing(false));
   }, [router]);
+
+  useEffect(() => {
+    if (!citizen?.leafHash) return;
+    
+    let active = true;
+    const listenToAnchors = async () => {
+      try {
+        const contract = await getContract();
+        contract.on("LicenseIssued", (admin, leafCommitment, timestamp) => {
+          if (!active) return;
+          const hexCommitment = "0x" + BigInt(leafCommitment).toString(16).padStart(64, "0");
+          if (hexCommitment === citizen.leafHash) {
+            setNotifications(prev => {
+              if (prev.some(n => n.title === "Identity Anchored")) return prev;
+              return [{ id: Date.now(), title: "Identity Anchored", desc: "Your credential was just secured on-chain.", time: "Just now" }, ...prev];
+            });
+            setHasUnread(true);
+            
+            // Sync new root
+            fetchRoot().then(root => {
+              if (active) setChainRoot(root || null);
+            }).catch(() => {});
+          }
+        });
+      } catch (e) {
+        console.error("Failed to set up event listener", e);
+      }
+    };
+    
+    listenToAnchors();
+    
+    return () => {
+      active = false;
+      getContract().then(c => c.removeAllListeners("LicenseIssued")).catch(() => {});
+    };
+  }, [citizen?.leafHash]);
 
   const showAlert = (type: "success" | "error", msg: string) => {
     setAlert({ type, msg });
@@ -471,6 +499,63 @@ export default function WalletPage() {
     );
   };
 
+  /* ── Wallet Export QR ── */
+  const WalletExportQR = () => {
+    const [show, setShow] = useState(false);
+    const blob = localStorage.getItem("citizen_license") || "";
+    const exportPayload = `kakuho-wallet:${btoa(blob)}`;
+
+    const handleDownload = () => {
+      const svg = document.getElementById("wallet-export-qr")?.closest("svg");
+      if (!svg) return;
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement("canvas");
+      canvas.width = 320; canvas.height = 320;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const img = new Image();
+      img.onload = () => {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, 320, 320);
+        ctx.drawImage(img, 0, 0, 320, 320);
+        const a = document.createElement("a");
+        a.download = "kakuho-wallet-export.png";
+        a.href = canvas.toDataURL("image/png");
+        a.click();
+      };
+      img.src = "data:image/svg+xml;base64," + btoa(svgData);
+    };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {!show ? (
+          <button onClick={() => setShow(true)} className="btn-kk btn-ghost" style={{ width: "100%", fontSize: 12 }}>
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3h5v5H3zM3 16h5v5H3zM16 3h5v5h-5z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16 16h2v2h-2zm0 3h2v2h-2zm3-3h2v2h-2zm0 3h2v2h-2z" /></svg>
+            Show Export QR
+          </button>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <div id="wallet-export-qr" style={{ background: "white", padding: 14, borderRadius: 14 }}>
+              <QRCodeSVG value={exportPayload} size={260} bgColor="#ffffff" fgColor="#0d0f14" level="L" />
+            </div>
+            <div style={{ display: "flex", gap: 8, width: "100%" }}>
+              <button onClick={handleDownload} className="btn-kk btn-orange" style={{ flex: 1, fontSize: 11 }}>
+                <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Download PNG
+              </button>
+              <button onClick={() => setShow(false)} className="btn-kk btn-ghost" style={{ flex: 1, fontSize: 11 }}>Hide</button>
+            </div>
+            <div style={{ background: "rgba(249,115,22,.05)", border: "1.5px solid rgba(249,115,22,.15)", borderRadius: 10, padding: "9px 12px", width: "100%" }}>
+              <p style={{ fontSize: 10, color: "rgba(249,115,22,.6)", lineHeight: 1.6 }}>
+                Download PNG to import on a new device. Your password is still required.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   /* ── Settings Panel ── */
   const SettingsPanel = () => {
     const leafHash = citizen?.leafHash || citizen?.leaf_hash || "—";
@@ -529,13 +614,20 @@ export default function WalletPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {proofHistory.slice(0, 5).map((p, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < Math.min(proofHistory.length, 5) - 1 ? "1px solid var(--border)" : "none" }}>
-                  <code style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--cyan)", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nullifier.slice(0, 20)}…</code>
+                  <code style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--cyan)", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Proof #{i + 1}</code>
                   <span style={{ fontSize: 10, color: "var(--text3)" }}>{new Date(p.ts).toLocaleDateString()}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
+
+        {/* Cross-device export */}
+        <div className="kk-card" style={{ padding: 18 }}>
+          <span className="kk-label" style={{ display: "block", marginBottom: 4 }}>Cross-Device Access</span>
+          <p style={{ fontSize: 11, color: "var(--text3)", marginBottom: 12, lineHeight: 1.6 }}>Scan this QR on another device to restore your encrypted wallet. Your password is still required to unlock it.</p>
+          <WalletExportQR />
+        </div>
 
         {/* Danger zone */}
         <div className="kk-card" style={{ padding: 18, borderColor: "rgba(239,68,68,.15)" }}>
