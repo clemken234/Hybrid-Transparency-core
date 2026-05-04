@@ -95,22 +95,16 @@ export default function Home() {
                 <span style={{ color: "var(--orange)" }}>Your Proof.</span>
               </h1>
               <p style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.7, marginTop: 16, maxWidth: 400 }}>
-                Digital credential anchored to the blockchain. Your private data never leaves your device.
+                A Zero-Knowledge digital credential anchored on-chain. Prove your identity instantly without revealing your private data.
               </p>
             </div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Link href="/login" className="btn-kk btn-orange" style={{ flex: "1 1 160px" }}>
+              <Link href="/wallet" className="btn-kk btn-orange" style={{ width: "fit-content" }}>
                 <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                   <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
                 </svg>
-                Unlock Wallet
-              </Link>
-              <Link href="/register" className="btn-kk btn-ghost" style={{ flex: "1 1 160px" }}>
-                Register Identity
-                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
+                Open Wallet
               </Link>
             </div>
           </div>

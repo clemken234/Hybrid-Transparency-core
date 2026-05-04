@@ -1,5 +1,5 @@
 import { Noir } from '@noir-lang/noir_js';
-import { BarretenbergBackend } from '@noir-lang/backend_barretenberg';
+import { UltraHonkBackend } from '@noir-lang/backend_barretenberg';
 import circuit from './hybrid_transparency.json';
 import { toFieldHex } from '../lib/commitment';
 
@@ -19,7 +19,7 @@ export async function generateIdentityProof(
     
     // 1. Initialize Backend and Noir
     // @ts-ignore
-    const backend = new BarretenbergBackend(circuit);
+    const backend = new UltraHonkBackend(circuit);
     // @ts-ignore
     const noir = new Noir(circuit, backend);
 

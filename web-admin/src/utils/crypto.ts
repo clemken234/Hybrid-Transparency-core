@@ -1,3 +1,10 @@
+// TODO (groupmate): This file is DEAD CODE — nothing imports it.
+// The correct leaf hash implementation is in src/lib/commitment.ts (computeLeafHash).
+// Also, the poseidon2Hash call below uses the OLD API signature:
+//   bb.poseidon2Hash([secretField, ...])       ← WRONG (old array style)
+// The current @aztec/bb.js API expects:
+//   bb.poseidon2Hash({ inputs: [...] })         ← CORRECT (matches lib/commitment.ts)
+// Either delete this file or fix+re-export from lib/commitment.ts.
 import { ethers } from 'ethers';
 import { Barretenberg, Fr } from '@aztec/bb.js';
 

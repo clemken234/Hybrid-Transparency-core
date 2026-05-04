@@ -10,9 +10,9 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@aztec/bb.js": "^4.2.0",
+    "@aztec/bb.js": "^0.58.0",
     "@noir-lang/backend_barretenberg": "^0.36.0",
-    "@noir-lang/noir_js": "^1.0.0-beta.20",
+    "@noir-lang/noir_js": "^0.36.0",
     "@supabase/supabase-js": "^2.104.1",
     "dotenv": "^17.4.2",
     "ethers": "^6.16.0",

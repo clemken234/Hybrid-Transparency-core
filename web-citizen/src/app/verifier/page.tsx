@@ -2,99 +2,56 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { generateIdentityProof } from "@/utils/zk-prove";
-import { fetchAllLeaves, fetchRoot, computeMerklePath } from "@/utils/chain";
-import { toFieldHex, stringToFieldHex } from "@/lib/commitment";
+import { submitProofToChain } from "@/utils/chain";
 
 const STEPS = [
-  { label: "Fetching Merkle root from blockchain", sub: "Reading on-chain state…" },
-  { label: "Computing Merkle inclusion path", sub: "Building proof witness…" },
-  { label: "Generating ZK proof", sub: "UltraHonk WASM ~30s…" },
+  { label: "Connecting to MetaMask", sub: "Requesting wallet access…" },
+  { label: "Preparing submission", sub: "Packaging proof for chain…" },
+  { label: "Submitting proof on-chain", sub: "Broadcasting to Sepolia…" },
+  { label: "Awaiting confirmation", sub: "Waiting for block inclusion…" },
 ];
 
-export default function ProvePage() {
+export default function VerifierPage() {
   const [citizen, setCitizen] = useState<any>(null);
-  const [isProving, setIsProving] = useState(false);
-  const [proofData, setProofData] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [proofData, setProofData] = useState<{ proof: string; publicInputs: string[] } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
+  const [result, setResult] = useState<{ txHash: string; nullifier: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem("citizen_license");
-    if (raw) {
-      try {
-        setCitizen(JSON.parse(raw));
-      } catch {
-        localStorage.removeItem("citizen_license");
-      }
-    }
+    if (raw) setCitizen(JSON.parse(raw));
+    const proof = localStorage.getItem("pending_proof");
+    if (proof) setProofData(JSON.parse(proof));
   }, []);
 
-  const handleProve = async () => {
-    if (!citizen) return;
-    setIsProving(true);
+  const handleSubmit = async () => {
+    if (!proofData) return;
+    setIsSubmitting(true);
     setError(null);
-    setProofData(null);
+    setResult(null);
     setCurrentStep(0);
 
     try {
-      const raw = localStorage.getItem("citizen_license");
-      if (!raw) throw new Error("No wallet found. Please register first.");
-      const secret = JSON.parse(raw).secret;
-      if (!secret) throw new Error("Secret not found in wallet. Please re-register.");
-
-      const [leaves, root] = await Promise.all([fetchAllLeaves(), fetchRoot()]);
-      if (!leaves.length) throw new Error("No leaves found on chain. Please wait for your identity to be anchored.");
-
-      const leafHash = citizen.leafHash || citizen.leaf_hash;
-      if (!leafHash) throw new Error("No leaf hash stored. Complete registration first.");
-
-      // Fallback: recompute hex fields from subject if missing (QR-imported wallets)
-      const privateLicenseData = citizen.private_license_data
-        || (citizen.subject?.licenseID ? stringToFieldHex(citizen.subject.licenseID) : null);
-      const publicName = citizen.public_name
-        || (citizen.subject ? stringToFieldHex(`${citizen.subject.firstName} ${citizen.subject.lastName}`) : null);
-
-      if (!privateLicenseData) throw new Error("License data missing. Please re-register.");
-      if (!publicName) throw new Error("Public name missing. Please re-register.");
-      if (!root) throw new Error("Could not fetch chain root. Check RPC connection.");
-
       setCurrentStep(1);
-      const normLeaves = leaves.map((l: string) => l.toLowerCase());
-      const merkleResult = computeMerklePath(leafHash.toLowerCase(), normLeaves);
-      if (!merkleResult) throw new Error("Your identity is not yet anchored to the blockchain. Please wait for confirmation.");
-
-      const { path: merklePath, leafIndex } = merkleResult;
-
       setCurrentStep(2);
-      const result = await generateIdentityProof(
-        secret,
-        privateLicenseData,
-        merklePath,
-        leafIndex,
-        publicName,
-        toFieldHex(root)
-      );
+      const res = await submitProofToChain(proofData.proof, proofData.publicInputs);
+      setCurrentStep(3);
 
-      const updated = { ...citizen, merkle_path: merklePath, leaf_index: leafIndex, public_merkle_root: root };
-      localStorage.setItem("citizen_license", JSON.stringify(updated));
-
-      const history = JSON.parse(localStorage.getItem("proof_history") || "[]");
-      history.unshift({ ts: Date.now() });
-      localStorage.setItem("proof_history", JSON.stringify(history.slice(0, 20)));
-
-      // Store for verifier page — deleted after on-chain submission
-      localStorage.setItem("pending_proof", JSON.stringify(result));
-
-      setProofData(result);
+      // Proof consumed — delete from localStorage
+      localStorage.removeItem("pending_proof");
+      setProofData(null);
+      setResult(res);
     } catch (err: unknown) {
-      setError((err as Error).message || "Proof generation failed.");
+      setError((err as Error).message || "Submission failed.");
     } finally {
-      setIsProving(false);
+      setIsSubmitting(false);
       setCurrentStep(-1);
     }
   };
 
+  /* ── No identity ── */
   if (!citizen) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, position: "relative" }}>
@@ -105,7 +62,7 @@ export default function ProvePage() {
           </div>
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", letterSpacing: "-.02em" }}>No Active Identity</h2>
-            <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 6, lineHeight: 1.6 }}>You need to log in first to generate a proof.</p>
+            <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 6, lineHeight: 1.6 }}>Log in first to submit a proof.</p>
           </div>
           <Link href="/wallet" className="btn-kk btn-orange" style={{ width: "100%" }}>Go to Wallet</Link>
         </div>
@@ -120,49 +77,67 @@ export default function ProvePage() {
 
         {/* Header */}
         <header style={{ display: "flex", alignItems: "center", gap: 14, padding: "20px 0", borderBottom: "1.5px solid var(--border)" }}>
-          <Link href="/wallet" style={{
-            width: 36, height: 36, borderRadius: 11,
-            background: "var(--bg2)", border: "1.5px solid var(--border)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "var(--text2)", flexShrink: 0, textDecoration: "none",
-          }}>
+          <Link href="/wallet" style={{ width: 36, height: 36, borderRadius: 11, background: "var(--bg2)", border: "1.5px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text2)", flexShrink: 0, textDecoration: "none" }}>
             <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" /></svg>
           </Link>
           <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.02em" }}>Identity Prover</h1>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.02em" }}>Identity Verifier</h1>
           </div>
+          <span className="badge-kk badge-green">
+            <div style={{ width: 5, height: 5, borderRadius: "50%" }} className="dot-green anim-pulse" />
+            On-Chain
+          </span>
         </header>
 
-        {/* Two-col on desktop */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "20px 0 32px", flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" as any }} id="prove-cols">
+        <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "20px 0 32px", flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" as any }} id="verifier-cols">
 
           {/* Identity card */}
           <div className="kk-card" style={{ padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <span className="kk-label">Active Identity</span>
+              <span className="kk-label">Submitting As</span>
               <span className="badge-kk badge-green">
                 <div style={{ width: 5, height: 5, borderRadius: "50%" }} className="dot-green anim-pulse" />
                 Loaded
               </span>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div>
-                <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 4 }}>Public Name</span>
-                <code style={{ display: "block", background: "rgba(255,255,255,.03)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-mono)", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {citizen.firstName && citizen.lastName
-                    ? `${citizen.firstName} ${citizen.lastName}`
-                    : citizen.publicName || citizen.public_name || "—"}
-                </code>
-              </div>
-            </div>
+            <code style={{ display: "block", background: "rgba(255,255,255,.03)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-mono)", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {citizen.firstName && citizen.lastName
+                ? `${citizen.firstName} ${citizen.lastName}`
+                : citizen.publicName || citizen.public_name || "—"}
+            </code>
           </div>
 
-          {/* Right column */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }} id="prove-right">
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }} id="verifier-right">
 
-            {/* Pipeline */}
+            {/* Proof status */}
             <div className="kk-card" style={{ padding: 20 }}>
-              <span className="kk-label" style={{ display: "block", marginBottom: 14 }}>Proof Pipeline</span>
+              <span className="kk-label" style={{ display: "block", marginBottom: 14 }}>Proof Status</span>
+              {proofData ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(34,197,94,.1)", border: "1.5px solid rgba(34,197,94,.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <svg width="16" height="16" fill="none" stroke="#4ade80" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Proof ready</p>
+                    <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>Generated by ZK Prover — not yet submitted</p>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(239,68,68,.08)", border: "1.5px solid rgba(239,68,68,.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <svg width="16" height="16" fill="#f87171" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 13h-2v-2h2v2zm0-4h-2V7h2v4z" /></svg>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>No proof found</p>
+                    <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>Generate a ZK proof first from the Prover page</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Submission pipeline */}
+            <div className="kk-card" style={{ padding: 20 }}>
+              <span className="kk-label" style={{ display: "block", marginBottom: 14 }}>Submission Pipeline</span>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {STEPS.map((s, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -194,25 +169,37 @@ export default function ProvePage() {
             {/* Info note */}
             <div style={{ display: "flex", gap: 10, padding: "12px 14px", background: "rgba(255,255,255,.02)", border: "1.5px solid var(--border)", borderRadius: 12 }}>
               <svg style={{ flexShrink: 0, marginTop: 1, opacity: .3 }} width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" /></svg>
-              <p style={{ fontSize: 11, color: "var(--text3)", lineHeight: 1.65 }}>Proof runs entirely in-browser — no private data leaves your device.</p>
+              <p style={{ fontSize: 11, color: "var(--text3)", lineHeight: 1.65 }}>
+                A one-time nonce is generated per submission. Proof is deleted locally after chain confirms — cannot be reused.
+              </p>
             </div>
 
-            {/* Prove button */}
-            <button onClick={handleProve} disabled={isProving}
-              className={`btn-kk ${isProving ? "btn-ghost" : "btn-cyan"}`}
-              style={{ width: "100%", fontSize: 14, padding: 16 }}>
-              {isProving ? (
+            {/* Submit button */}
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !proofData}
+              className={`btn-kk ${isSubmitting ? "btn-ghost" : proofData ? "btn-cyan" : "btn-ghost"}`}
+              style={{ width: "100%", fontSize: 14, padding: 16 }}
+            >
+              {isSubmitting ? (
                 <>
                   <div className="anim-spin" style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,.2)", borderTopColor: "rgba(255,255,255,.6)", borderRadius: "50%", flexShrink: 0 }} />
-                  {currentStep >= 0 ? STEPS[currentStep].label.split(" ").slice(0, 3).join(" ") + "…" : "Working…"}
+                  {currentStep >= 0 ? STEPS[currentStep].label + "…" : "Working…"}
                 </>
               ) : (
                 <>
                   <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-                  Generate ZK Proof
+                  {proofData ? "Submit Proof to Chain" : "No Proof to Submit"}
                 </>
               )}
             </button>
+
+            {!proofData && !result && (
+              <Link href="/prove" className="btn-kk btn-ghost" style={{ width: "100%", fontSize: 13, padding: 14, textAlign: "center", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                Go to ZK Prover
+              </Link>
+            )}
 
             {/* Error */}
             {error && (
@@ -222,28 +209,24 @@ export default function ProvePage() {
               </div>
             )}
 
-            {/* Proof result */}
-            {proofData && (
+            {/* Success */}
+            {result && (
               <div style={{ background: "rgba(34,197,94,.04)", border: "1.5px solid rgba(34,197,94,.2)", borderRadius: 18, padding: 20, display: "flex", flexDirection: "column", gap: 14 }} className="anim-pop">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(34,197,94,.12)", border: "1.5px solid rgba(34,197,94,.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <svg width="13" height="13" fill="none" stroke="#4ade80" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80", letterSpacing: ".07em", textTransform: "uppercase" }}>Proof Generated Successfully</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80", letterSpacing: ".07em", textTransform: "uppercase" }}>Proof Verified On-Chain</span>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div>
-                    <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 5 }}>Public Inputs</span>
-                    <code style={{ display: "block", background: "rgba(0,0,0,.25)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 11, fontFamily: "var(--font-mono)", color: "oklch(0.72 0.18 200)", wordBreak: "break-all", lineHeight: 1.7 }}>{proofData.publicInputs?.[0] ?? "—"}</code>
-                  </div>
-                  <div>
-                    <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 5 }}>Proof Bytes (truncated)</span>
-                    <code style={{ display: "block", background: "rgba(0,0,0,.25)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text3)", wordBreak: "break-all", lineHeight: 1.7 }}>{proofData.proof.substring(0, 120)}…</code>
+                    <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 5 }}>Transaction Hash</span>
+                    <code style={{ display: "block", background: "rgba(0,0,0,.25)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 11, fontFamily: "var(--font-mono)", color: "oklch(0.72 0.18 200)", wordBreak: "break-all", lineHeight: 1.7 }}>{result.txHash}</code>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: .28 }}>
                   <svg width="11" height="11" fill="white" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
-                  <span style={{ fontSize: 9, fontWeight: 800, color: "white", letterSpacing: ".25em", textTransform: "uppercase" }}>Verified by ZK Circuit · Kakuho</span>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: "white", letterSpacing: ".25em", textTransform: "uppercase" }}>Verified by LTORegistry · Kakuho</span>
                 </div>
               </div>
             )}
@@ -253,9 +236,9 @@ export default function ProvePage() {
 
       <style>{`
         @media(min-width:768px){
-          #prove-cols { flex-direction:row !important; gap:24px !important; align-items:flex-start !important; }
-          #prove-cols > *:first-child { flex:1.3; }
-          #prove-right { flex:1; }
+          #verifier-cols { flex-direction:row !important; gap:24px !important; align-items:flex-start !important; }
+          #verifier-cols > *:first-child { flex:1.3; }
+          #verifier-right { flex:1; }
         }
       `}</style>
     </div>

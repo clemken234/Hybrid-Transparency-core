@@ -1,10 +1,5 @@
-import { ethers } from "@nomicfoundation/hardhat-ethers/internal/ethers-provider-wrapper.js";
-import hre from "hardhat";
-
-// Hardhat v3: ethers is injected via hre at runtime
-const ethersPlugin = (await import("@nomicfoundation/hardhat-ethers")).default;
-await ethersPlugin.extendEnvironment?.(hre);
-const ethers = hre.ethers ?? (await import("ethers"));
+import pkg from "hardhat";
+const { ethers } = pkg;
 
 async function main() {
   const [deployer] = await ethers.getSigners();

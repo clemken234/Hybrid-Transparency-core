@@ -9,9 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@aztec/bb.js": "^4.2.0",
+    "@aztec/bb.js": "^0.58.0",
     "@noir-lang/backend_barretenberg": "^0.36.0",
-    "@noir-lang/noir_js": "^1.0.0-beta.20",
+    "@noir-lang/noir_js": "^0.36.0",
     "bip39": "^3.1.0",
     "dotenv": "^17.4.2",
     "ethers": "^6.16.0",
@@ -24,6 +24,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@noir-lang/noir_wasm": "^0.36.0",
     "@tailwindcss/postcss": "^4",
     "@types/bip39": "^2.4.2",
     "@types/node": "^20.19.39",

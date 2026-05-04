@@ -16,9 +16,15 @@ export async function POST(req: Request) {
         const { createClient } = await import('@supabase/supabase-js');
         const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+        // TODO (groupmate): Two things need fixing here —
+        // 1. verify/route.ts reads `is_revoked` (boolean) but this only sets `status: 'REVOKED'`.
+        //    Add `is_revoked: true` to the update below so revoked citizens show correctly in verify.
+        // 2. This only soft-revokes in Supabase. The on-chain Merkle tree is NOT updated.
+        //    Call contract.revokeLicense(leafIndex, siblings) here to also remove from chain.
+        //    ABI needed: "function revokeLicense(uint256 index, uint256[] calldata siblings) public"
         const { error } = await supabase
             .from('identities')
-            .update({ status: 'REVOKED' })
+            .update({ status: 'REVOKED' }) // <-- also add: is_revoked: true
             .eq('leaf_hash', leafHash);
 
         if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
