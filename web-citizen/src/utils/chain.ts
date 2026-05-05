@@ -1,5 +1,14 @@
 import { ethers } from "ethers";
-import { poseidon2 } from "poseidon-lite";
+import { poseidon3 } from "poseidon-lite";
+
+/**
+ * Mirrors Noir's bn254::hash_2([l, r]):
+ *   state = [0, l, r]  →  x5_3(state)[0]
+ * This is poseidon3([0n, l, r]), NOT poseidon2([l, r]).
+ */
+function poseidonHash2(l: bigint, r: bigint): bigint {
+  return poseidon3([BigInt(0), l, r]);
+}
 
 const REGISTRY_ABI = [
   "event LicenseIssued(address indexed executor, uint256 indexed leafCommitment, uint256 timestamp)",
@@ -90,7 +99,7 @@ export function computeMerklePath(
     for (const p of parents) {
       const l = level.get(p * 2) ?? ZERO;
       const r = level.get(p * 2 + 1) ?? ZERO;
-      const hash = (l === ZERO && r === ZERO) ? ZERO : poseidon2([l, r]);
+      const hash = (l === ZERO && r === ZERO) ? ZERO : poseidonHash2(l, r);
       if (hash !== ZERO) nextLevel.set(p, hash);
     }
 

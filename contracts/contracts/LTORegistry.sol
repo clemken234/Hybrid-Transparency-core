@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.28;
 
 import "@zk-kit/imt.sol/LeanIMT.sol";
 
@@ -65,7 +65,7 @@ contract LTORegistry {
 
         // Enforce that the public Merkle root in the proof matches on-chain state
         bytes32 onChainRoot = bytes32(tree.root());
-        require(publicInputs.length >= 2, "Missing public inputs");
+        require(publicInputs.length == 2, "Expected exactly 2 public inputs");
         require(publicInputs[1] == onChainRoot, "Merkle root mismatch");
 
         bool valid = verifier.verify(proof, publicInputs);

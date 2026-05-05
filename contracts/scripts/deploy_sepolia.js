@@ -7,9 +7,10 @@
 //   SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
 //   DEPLOYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 
-import { ethers } from "hardhat";
+import { network } from "hardhat";
 
 async function main() {
+  const { ethers } = await network.connect();
   const verifierArg = process.argv[2] || "0x0000000000000000000000000000000000000000";
   const [deployer] = await ethers.getSigners();
 
@@ -19,7 +20,7 @@ async function main() {
 
   // 1. PoseidonT3
   console.log("1. Deploying PoseidonT3...");
-  const PoseidonT3 = await ethers.getContractFactory("poseidon-solidity/PoseidonT3.sol:PoseidonT3");
+  const PoseidonT3 = await ethers.getContractFactory("PoseidonT3");
   const poseidonT3 = await PoseidonT3.deploy();
   await poseidonT3.waitForDeployment();
   console.log("   PoseidonT3:", poseidonT3.target);
@@ -27,7 +28,7 @@ async function main() {
   // 2. LeanIMT
   console.log("2. Deploying LeanIMT...");
   const LeanIMT = await ethers.getContractFactory("LeanIMT", {
-    libraries: { "poseidon-solidity/PoseidonT3.sol:PoseidonT3": poseidonT3.target },
+    libraries: { PoseidonT3: poseidonT3.target },
   });
   const leanIMT = await LeanIMT.deploy();
   await leanIMT.waitForDeployment();

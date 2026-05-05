@@ -1,35 +1,54 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { computeMerklePath, fetchAllLeavesOnChain, getContractWithSigner } from "@/utils/chain";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-    try {
-        const { leafHash } = await req.json();
-        if (!leafHash) return NextResponse.json({ success: false, error: 'No hash provided' }, { status: 400 });
-
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'undefined') {
-            return NextResponse.json({ success: false, error: 'Database credentials missing' }, { status: 503 });
-        }
-
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-        // TODO (groupmate): Two things need fixing here —
-        // 1. verify/route.ts reads `is_revoked` (boolean) but this only sets `status: 'REVOKED'`.
-        //    Add `is_revoked: true` to the update below so revoked citizens show correctly in verify.
-        // 2. This only soft-revokes in Supabase. The on-chain Merkle tree is NOT updated.
-        //    Call contract.revokeLicense(leafIndex, siblings) here to also remove from chain.
-        //    ABI needed: "function revokeLicense(uint256 index, uint256[] calldata siblings) public"
-        const { error } = await supabase
-            .from('identities')
-            .update({ status: 'REVOKED' }) // <-- also add: is_revoked: true
-            .eq('leaf_hash', leafHash);
-
-        if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-        return NextResponse.json({ success: true });
-    } catch (err: any) {
-        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  try {
+    const { leafHash } = await req.json();
+    if (!leafHash) {
+      return NextResponse.json({ success: false, error: "No hash provided" }, { status: 400 });
     }
+
+    const normalizedLeafHash = String(leafHash).trim().toLowerCase();
+
+    const identity = await db.findByLeafHash(normalizedLeafHash);
+    if (!identity) {
+      return NextResponse.json({ success: false, error: "Identity not found" }, { status: 404 });
+    }
+
+    if (identity.status === "REVOKED" || identity.is_revoked) {
+      return NextResponse.json({ success: true, alreadyRevoked: true });
+    }
+
+    const leaves = await fetchAllLeavesOnChain();
+    if (!leaves.length) {
+      return NextResponse.json({ success: false, error: "No on-chain leaves found" }, { status: 409 });
+    }
+
+    const merkleProof = computeMerklePath(
+      normalizedLeafHash,
+      leaves,
+      typeof identity.leaf_index === "number" ? identity.leaf_index : undefined
+    );
+
+    if (!merkleProof) {
+      return NextResponse.json({ success: false, error: "Leaf not found on-chain" }, { status: 409 });
+    }
+
+    const contract = await getContractWithSigner();
+    const siblings = merkleProof.path.map((node) => BigInt(node));
+    const tx = await contract.revokeLicense(BigInt(merkleProof.leafIndex), siblings);
+    await tx.wait();
+
+    const newRoot = await contract.getRoot();
+    const merkleRoot = "0x" + BigInt(newRoot).toString(16).padStart(64, "0");
+
+    await db.update(normalizedLeafHash, { status: "REVOKED", is_revoked: true, merkle_root: merkleRoot });
+
+    return NextResponse.json({ success: true, leafIndex: merkleProof.leafIndex, merkleRoot, txHash: tx.hash });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
 }

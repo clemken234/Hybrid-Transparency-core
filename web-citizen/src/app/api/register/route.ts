@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
-import { ethers } from "ethers";
 
 export const dynamic = "force-dynamic";
-
-const REGISTRY_ABI = [
-  "function issueLicense(uint256 leafCommitment) public",
-  "function getAllLeaves() public view returns (uint256[] memory)",
-];
 
 export async function POST(req: Request) {
   try {
@@ -19,29 +13,31 @@ export async function POST(req: Request) {
       );
     }
 
-    const privateKey = process.env.ADMIN_PRIVATE_KEY;
-    const registryAddress = process.env.NEXT_PUBLIC_REGISTRY_ADDRESS;
-    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL;
-
-    if (!privateKey || !registryAddress || !rpcUrl) {
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
+    if (!adminUrl) {
       return NextResponse.json(
-        { success: false, error: "Server env config missing" },
+        { success: false, error: "Admin URL not configured" },
         { status: 503 }
       );
     }
 
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const wallet = new ethers.Wallet(privateKey, provider);
-    const contract = new ethers.Contract(registryAddress, REGISTRY_ABI, wallet);
+    // Forward to admin — admin owns Supabase and chain anchoring
+    const res = await fetch(`${adminUrl}/api/admin/create-registry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leafHash, publicName, pendingOnly: true }),
+    });
 
-    // Capture leaf index before inserting (it will be currentLeaves.length after insert)
-    const currentLeaves = await contract.getAllLeaves();
-    const leafIndex = Number(currentLeaves.length);
+    const data = await res.json();
 
-    const tx = await contract.issueLicense(BigInt(leafHash));
-    await tx.wait();
+    if (!data.success) {
+      return NextResponse.json(
+        { success: false, error: data.error || "Admin registration failed" },
+        { status: 500 }
+      );
+    }
 
-    return NextResponse.json({ success: true, leafIndex, txHash: tx.hash });
+    return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("register route error:", err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 
 type CitizenSubject = {
   licenseID: string;
@@ -69,10 +68,11 @@ export default function AdminPage() {
   };
 
   const fetchData = async () => {
-    const { data } = await supabase.from('identities').select('*').order('created_at', { ascending: false });
-    if (data) {
-      setRegistrations(data.filter((r: any) => r.status !== 'PENDING'));
-      setPendingEntries(data.filter((r: any) => r.status === 'PENDING'));
+    const res = await fetch('/api/admin/identities');
+    const json = await res.json();
+    if (json.success && json.data) {
+      setRegistrations(json.data.filter((r: any) => r.status !== 'PENDING'));
+      setPendingEntries(json.data.filter((r: any) => r.status === 'PENDING'));
     }
   };
 
@@ -143,8 +143,9 @@ export default function AdminPage() {
     setVerifyResult(null);
     setRevokeResult(null);
     addLog('Verifier', `Verifying hash: ${scannedHash.slice(0, 20)}...`);
-    const { data } = await supabase.from('identities').select('*').eq('leaf_hash', scannedHash.trim()).single();
-    if (data) {
+    const res = await fetch(`/api/admin/verify?hash=${encodeURIComponent(scannedHash.trim())}`);
+    const data = await res.json();
+    if (data.found) {
       setVerifyResult({ found: true, name: data.public_name, status: data.status });
       addLog('Audit', `PASS: ${data.public_name} — Status: ${data.status}`);
     } else {

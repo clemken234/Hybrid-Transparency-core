@@ -67,8 +67,7 @@ export default function RegisterPage() {
         private_license_data: privateLicenseData,
         subject,
         merkle_path: null,
-        // Store leafIndex from chain response so ZK prove can locate the leaf immediately
-        leaf_index: data.leafIndex ?? null,
+        leaf_index: null,
         public_merkle_root: null,
       }));
 
