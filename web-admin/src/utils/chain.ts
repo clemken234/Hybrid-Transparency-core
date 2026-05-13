@@ -1,5 +1,6 @@
+/*
 import { ethers } from "ethers";
-import { poseidon2 } from "poseidon-lite";
+import { Barretenberg, Fr } from "@aztec/bb.js";
 
 const REGISTRY_ABI = [
   "function issueLicense(uint256 leafCommitment) public",
@@ -40,11 +41,12 @@ export async function fetchAllLeavesOnChain(): Promise<string[]> {
 const TREE_DEPTH = 20;
 const ZERO = BigInt(0);
 
-export function computeMerklePath(
+export async function computeMerklePath(
   leafHash: string,
   leaves: string[],
   expectedLeafIndex?: number
-): { path: string[]; leafIndex: number; root: string } | null {
+): Promise<{ path: string[]; leafIndex: number; root: string } | null> {
+  const bb = await Barretenberg.new();
   const normalizedLeaf = leafHash.toLowerCase();
   const normalizedLeaves = leaves.map((leaf) => leaf.toLowerCase());
 
@@ -79,7 +81,13 @@ export function computeMerklePath(
     for (const parent of parents) {
       const left = level.get(parent * 2) ?? ZERO;
       const right = level.get(parent * 2 + 1) ?? ZERO;
-      const hash = left === ZERO && right === ZERO ? ZERO : poseidon2([left, right]);
+      let hash = ZERO;
+      if (left !== ZERO || right !== ZERO) {
+        const leftFr = Fr.fromString("0x" + left.toString(16).padStart(64, "0"));
+        const rightFr = Fr.fromString("0x" + right.toString(16).padStart(64, "0"));
+        const h = await bb.pedersenHash([leftFr, rightFr], 0);
+        hash = BigInt(h.toString());
+      }
       if (hash !== ZERO) nextLevel.set(parent, hash);
     }
 

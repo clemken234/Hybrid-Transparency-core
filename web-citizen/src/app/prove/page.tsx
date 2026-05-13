@@ -65,6 +65,7 @@ export default function ProvePage() {
       const { path: merklePath, root, leafIndex } = merkleResult;
       
       const publicMerkleRoot = await fetchRoot();
+      if (!publicMerkleRoot) throw new Error("Could not fetch Merkle root from the blockchain.");
 
       // ADD THESE TWO LINES:
       console.log("🛑 Local Standard Root:", root);
@@ -80,10 +81,10 @@ export default function ProvePage() {
         merklePath,
         leafIndex,
         public_name,
-        root
+        publicMerkleRoot
       );
 
-      const updated = { ...citizen, merkle_path: merklePath, leaf_index: leafIndex, public_merkle_root: root };
+      const updated = { ...citizen, merkle_path: merklePath, leaf_index: leafIndex, public_merkle_root: publicMerkleRoot };
       localStorage.setItem("citizen_license", JSON.stringify(updated));
 
       const history = JSON.parse(localStorage.getItem("proof_history") || "[]");

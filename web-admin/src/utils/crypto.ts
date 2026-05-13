@@ -1,23 +1,25 @@
 // TODO (groupmate): This file is DEAD CODE — nothing imports it.
 // The correct leaf hash implementation is in src/lib/commitment.ts (computeLeafHash).
-// Also, the poseidon2Hash call below uses the OLD API signature:
-//   bb.poseidon2Hash([secretField, ...])       ← WRONG (old array style)
+// Also, the pedersenHash call below uses the OLD API signature:
+//   bb.pedersenHash([secretField, ...])       ← WRONG (old array style)
 // The current @aztec/bb.js API expects:
-//   bb.poseidon2Hash({ inputs: [...] })         ← CORRECT (matches lib/commitment.ts)
+//   bb.pedersenHash({ inputs: [...] })         ← CORRECT (matches lib/commitment.ts)
 // Either delete this file or fix+re-export from lib/commitment.ts.
+/*
 import { ethers } from 'ethers';
 import { Barretenberg, Fr } from '@aztec/bb.js';
 
 /**
- * POSEIDON ZKP LEAF GENERATOR
- * Computes the final Merkle leaf hash using Poseidon2 hashing.
+ * PEDERSEN ZKP LEAF GENERATOR
+ * Computes the final Merkle leaf hash using Pedersen hashing.
  */
+/*
 export async function createFinalMerkleLeaf(
     secret: string, 
     private_license_data: string, 
     public_name: string
 ): Promise<string> {
-    // 1. Turn on the WebAssembly Poseidon Engine
+    // 1. Turn on the WebAssembly Pedersen Engine
     const bb = await Barretenberg.new();
 
     try {
@@ -26,12 +28,12 @@ export async function createFinalMerkleLeaf(
         const privateDataField = Fr.fromString(private_license_data || "0");
         const publicNameField = Fr.fromString(public_name || "0");
 
-        // 3. Run the pure poseidon2Hash math! (Matches your Leader exactly)
-        const leafHashField = await bb.poseidon2Hash([
+        // 3. Run the pure pedersenHash math! (Matches your Leader exactly)
+        const leafHashField = await bb.pedersenHash([
             secretField, 
             privateDataField, 
             publicNameField
-        ]);
+        ], 0);
         
         return leafHashField.toString(); 
     } finally {
@@ -59,3 +61,4 @@ export async function signCredential(finalLeafHash: string, licenseID: string) {
         signedBy: adminWallet.address
     };
 }
+*/

@@ -7,8 +7,8 @@ async function verifyGoldenRoot() {
     const bb = await Barretenberg.new();
 
     // 1. The exact leaves extracted from your Next.js console logs
-    const lorenaLeafHex = "0x1d6d7bb347ca85eae52c2ef28497e115c2b39448ad781adb834930599e82febd";
-    const enriqueLeafHex = "0x2956ea086dcf42378686ed0d03f8ffbaf49c3fb4e66faf49426917e00679c6fc";
+    const lorenaLeafHex = "0x21bc90e5b47f11f172e79bfb3c3b65d2a1ca6999793ab846352f283442532c8b";
+    const enriqueLeafHex = "0x20843a0db3a6160d93e5d8f9f7ca5e4328ce82b90785251da4ed080a8eca616d";
 
     console.log("🍃 Leaf 0 (Lorena):", lorenaLeafHex);
     console.log("🍃 Leaf 1 (Enrique):", enriqueLeafHex);
@@ -43,7 +43,7 @@ async function verifyGoldenRoot() {
 
     // 5. Format and verify the Final Root
     const calculatedRoot = "0x" + BigInt(currentNode.toString()).toString(16).padStart(64, '0');
-    const expectedGoldenRoot = "0x06e8dcb488d9c059cf09e302334cca9444bfafa777376527d2b1de086819a626";
+    const expectedGoldenRoot = "0x0bb86687610da898dd8c939cc18d9327d5c23b566faaaed615c2391e2e4c3eb2";
 
     console.log("\n==========================================");
     console.log("🎯 Calculated Root:", calculatedRoot);
