@@ -103,6 +103,34 @@ export default function ProvePage() {
     }
   };
 
+  const handleDownloadProof = () => {
+    if (!proofData) return;
+    
+    // 1. Package your existing variables into a clean object
+    const exportData = {
+        proof: proofData.proof,
+        publicInputs: proofData.publicInputs
+    };
+
+    // 2. Convert it to a beautifully formatted JSON string (the '2' adds indents)
+    const jsonString = JSON.stringify(exportData, null, 2);
+
+    // 3. Create a temporary Blob (a file object in the browser's memory)
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    // 4. Create an invisible anchor tag to trigger the browser's native download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'zk_identity_proof.json'; // The exact filename you requested
+    
+    // 5. Append, click, and destroy
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url); // Clears the memory
+  };
+
   if (!citizen) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, position: "relative" }}>
@@ -254,6 +282,13 @@ export default function ProvePage() {
                   <span style={{ fontSize: 9, fontWeight: 800, color: "white", letterSpacing: ".25em", textTransform: "uppercase" }}>Verified by ZK Circuit · Kakuho</span>
                 </div>
 
+                <button 
+                    onClick={handleDownloadProof} 
+                    className="mt-4 px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded shadow-md transition-all"
+                    style={{ border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                >
+                    💾 Download Proof (JSON)
+                </button>
               </div>
             )}
           </div>
