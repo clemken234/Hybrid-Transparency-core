@@ -14,7 +14,7 @@ export type CitizenSubject = {
 export type MockCitizen = {
   subject: CitizenSubject;
   ltoSignature: string;
-};
+};  
 
 const mockCitizens: MockCitizen[] = [
   {

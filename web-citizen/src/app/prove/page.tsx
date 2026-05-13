@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { generateIdentityProof } from "@/utils/zk-prove";
-import { fetchAllLeaves, fetchRoot, computeMerklePath } from "@/utils/chain";
-import { toFieldHex, stringToFieldHex } from "@/lib/commitment";
+import { fetchAllLeaves, computeLeanIMTPath, fetchRoot } from "@/utils/chain";
 
 const STEPS = [
   { label: "Fetching Merkle root from blockchain", sub: "Reading on-chain state…" },
@@ -38,42 +37,50 @@ export default function ProvePage() {
     setCurrentStep(0);
 
     try {
+      // 1. Pull exact required variables from localStorage
       const raw = localStorage.getItem("citizen_license");
       if (!raw) throw new Error("No wallet found. Please register first.");
-      const secret = JSON.parse(raw).secret;
-      if (!secret) throw new Error("Secret not found in wallet. Please re-register.");
+      
+      const parsedData = JSON.parse(raw);
+      const secret = parsedData.secret;
+      const private_license_data = parsedData.private_license_data;
+      const public_name = parsedData.public_name;
+      const leafHash = parsedData.leafHash || parsedData.leaf_hash;
 
-      const [leaves, root] = await Promise.all([fetchAllLeaves(), fetchRoot()]);
+      if (!secret || !private_license_data || !public_name || !leafHash) {
+        throw new Error("Missing identity variables in wallet. Please re-register.");
+      }
+
+      // 2. Call fetchAllLeaves()
+      const leaves = await fetchAllLeaves();
       if (!leaves.length) throw new Error("No leaves found on chain. Please wait for your identity to be anchored.");
 
-      const leafHash = citizen.leafHash || citizen.leaf_hash;
-      if (!leafHash) throw new Error("No leaf hash stored. Complete registration first.");
-
-      // Fallback: recompute hex fields from subject if missing (QR-imported wallets)
-      const privateLicenseData = citizen.private_license_data
-        || (citizen.subject?.licenseID ? stringToFieldHex(citizen.subject.licenseID) : null);
-      const publicName = citizen.public_name
-        || (citizen.subject ? stringToFieldHex(`${citizen.subject.firstName} ${citizen.subject.lastName}`) : null);
-
-      if (!privateLicenseData) throw new Error("License data missing. Please re-register.");
-      if (!publicName) throw new Error("Public name missing. Please re-register.");
-      if (!root) throw new Error("Could not fetch chain root. Check RPC connection.");
-
       setCurrentStep(1);
+
+      // 3. await computeLeanIMTPath to get the dynamic path and root
       const normLeaves = leaves.map((l: string) => l.toLowerCase());
-      const merkleResult = computeMerklePath(leafHash.toLowerCase(), normLeaves);
+      const merkleResult = await computeLeanIMTPath(leafHash.toLowerCase(), normLeaves);
       if (!merkleResult) throw new Error("Your identity is not yet anchored to the blockchain. Please wait for confirmation.");
 
-      const { path: merklePath, leafIndex } = merkleResult;
+      const { path: merklePath, root, leafIndex } = merkleResult;
+      
+      const publicMerkleRoot = await fetchRoot();
+
+      // ADD THESE TWO LINES:
+      console.log("🛑 Local Standard Root:", root);
+      console.log("🛑 Blockchain Root:", publicMerkleRoot);
 
       setCurrentStep(2);
+
+      // 4. Pass those 6 exact variables into generateIdentityProof()
+      console.log("WAIT, what is the raw name before translation?:", public_name);
       const result = await generateIdentityProof(
         secret,
-        privateLicenseData,
+        private_license_data,
         merklePath,
         leafIndex,
-        publicName,
-        toFieldHex(root)
+        public_name,
+        root
       );
 
       const updated = { ...citizen, merkle_path: merklePath, leaf_index: leafIndex, public_merkle_root: root };

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import jsQR from "jsqr";
 import { Html5Qrcode } from "html5-qrcode";
 import { QRCodeSVG } from "qrcode.react";
-import { fetchRoot, getContract, fetchAllLeaves, computeMerklePath } from "@/utils/chain";
+import { fetchRoot, getContract, fetchAllLeaves, computeLeanIMTPath } from "@/utils/chain";
 
 /* ── Logo ── */
 const KakuhoLogo = ({ size = 34 }: { size?: number }) => (
@@ -173,13 +173,17 @@ const DesktopSidebar = ({ active, setActive, citizen, onLogout, hasUnread, onNot
         { id: "prove", label: "ZK Prover", icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg> },
         { id: "verifier", label: "Verifier", icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg> },
         { id: "settings", label: "Settings", icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><circle cx="12" cy="12" r="3" /></svg> },
-      ].map(n => (
-        <button key={n.id} onClick={() => setActive(n.id)} className={`sidebar-item${active === n.id ? " active" : ""}`}>
-          {n.icon}{n.label}
+     ].map((n) => (
+        <button 
+          key={n.id} 
+          onClick={() => setActive(n.id)} 
+          className={active === n.id ? "sidebar-item active" : "sidebar-item"}
+        >
+          {n.icon}
+          {n.label}
         </button>
       ))}
     </nav>
-
     <div style={{ padding: "10px 10px", borderTop: "1.5px solid var(--border)", display: "flex", flexDirection: "column", gap: 8 }}>
       <button onClick={onNotif} style={{
         width: "100%", padding: "9px 12px", borderRadius: 12,
@@ -228,9 +232,28 @@ const DesktopSidebar = ({ active, setActive, citizen, onLogout, hasUnread, onNot
 /* ── Credential card ── */
 const CredentialCard = ({ data, onAlert }: { data: any; onAlert?: (type: "success" | "error", msg: string) => void }) => {
   const [isFlipped, setIsFlipped] = useState(false);
+  const [copiedLeaf, setCopiedLeaf] = useState(false);
+
   const cardGradient = data.licenseType === "NON-PROFESSIONAL"
     ? "linear-gradient(135deg,#1a237e 0%,#283593 45%,#1565c0 100%)"
     : "linear-gradient(135deg,#fb923c 0%,#f97316 50%,#c2410c 100%)";
+
+  let displayLeaf = data.leafHash;
+  if (displayLeaf && !displayLeaf.startsWith("0x")) {
+    try {
+      displayLeaf = "0x" + BigInt(displayLeaf).toString(16);
+    } catch (e) {}
+  }
+
+  const handleCopyLeaf = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (displayLeaf) {
+      navigator.clipboard.writeText(displayLeaf);
+      setCopiedLeaf(true);
+      setTimeout(() => setCopiedLeaf(false), 2000);
+      if (onAlert) onAlert("success", "Leaf hash copied!");
+    }
+  };
 
   return (
     <div className="cred-perspective" style={{ width: "100%", maxWidth: "min(400px,100%)", height: 190, position: "relative", cursor: "pointer" }} onClick={() => setIsFlipped(!isFlipped)}>
@@ -283,6 +306,24 @@ const CredentialCard = ({ data, onAlert }: { data: any; onAlert?: (type: "succes
                   <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text2)", fontWeight: 500 }}>{v || "—"}</span>
                 </div>
               ))}
+              
+              {/* Leaf Hash */}
+              <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 2, marginTop: 2 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 7, fontWeight: 800, color: "var(--text3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Leaf Hash</span>
+                  {displayLeaf && (
+                    <button 
+                      onClick={handleCopyLeaf}
+                      style={{ background: "rgba(249,115,22,.15)", border: "1px solid rgba(249,115,22,.3)", borderRadius: 4, color: "var(--orange)", fontSize: 7, fontWeight: 800, cursor: "pointer", padding: "2px 6px", letterSpacing: ".05em" }}
+                    >
+                      {copiedLeaf ? "COPIED" : "COPY"}
+                    </button>
+                  )}
+                </div>
+                <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: "var(--cyan)", fontWeight: 500, wordBreak: "break-all", lineHeight: 1.2 }}>
+                  {displayLeaf || "—"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -351,6 +392,8 @@ export default function WalletPage() {
     fetchRoot().then(root => setChainRoot(root || null)).finally(() => setRootSyncing(false));
   }, [router]);
 
+  
+
   useEffect(() => {
     if (!citizen?.leafHash) return;
     let active = true;
@@ -404,19 +447,7 @@ export default function WalletPage() {
           }
         });
 
-        // Listener for proof verifications (if prover matches user's address or we just want to show general activity)
-        contract.on("ProofVerified", (prover, nullifier, timestamp) => {
-          if (!active) return;
-          // We could filter by prover address here if we had it, 
-          // but for now let's show all "Verification" activity to feel "live"
-          setNotifications(prev => [{
-            id: `v-${nullifier}`,
-            title: "Identity Verified",
-            desc: "A ZK proof was successfully verified.",
-            time: "Just now"
-          }, ...prev]);
-          setHasUnread(true);
-        });
+        
 
       } catch (e) { console.error("Failed to set up event listener", e); }
     };
@@ -428,7 +459,6 @@ export default function WalletPage() {
       active = false;
       getContract().then(c => {
         c.removeAllListeners("LicenseIssued");
-        c.removeAllListeners("ProofVerified");
       }).catch(() => { });
     };
   }, [citizen?.leafHash]);
@@ -440,7 +470,7 @@ export default function WalletPage() {
 
   const handleNav = (id: string) => {
     if (id === "prove") { router.push("/prove"); return; }
-    if (id === "verifier") { router.push("/verifier"); return; }
+    // if (id === "verifier") { router.push("/verifier"); return; }
     setTab(id);
   };
 
@@ -454,8 +484,16 @@ export default function WalletPage() {
         const b64 = raw.trim().slice("kakuho-wallet:".length);
         const json = decodeURIComponent(escape(atob(b64)));
         const parsed = JSON.parse(json);
-        if (!parsed.secret || !parsed.leafHash) throw new Error("Invalid wallet export data.");
-        localStorage.setItem("citizen_license", JSON.stringify(parsed));
+        let leafHash = parsed.leafHash || parsed.leafCommitment;
+        if (!parsed.secret || !leafHash) throw new Error("Invalid wallet export data.");
+        
+        // Normalize to 0x hex if it's decimal
+        if (!leafHash.startsWith("0x")) {
+          leafHash = "0x" + BigInt(leafHash).toString(16).padStart(64, "0");
+        }
+        
+        const normalizedData = { ...parsed, leafHash };
+        localStorage.setItem("citizen_license", JSON.stringify(normalizedData));
         showAlert("success", "Wallet imported!");
         setTimeout(() => window.location.reload(), 1500);
         return;
@@ -486,16 +524,22 @@ export default function WalletPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleSyncMerklePath = async () => {
+const handleSyncMerklePath = async () => {
     if (!citizen?.leafHash) { showAlert("error", "No leaf hash found. Re-register first."); return; }
     setMerklePathSyncing(true);
     try {
       const leaves = await fetchAllLeaves();
-      const result = computeMerklePath(citizen.leafHash, leaves);
+      
+      // ADDED 'await' HERE! 
+      // Now it waits for Barretenberg to finish the Pedersen Hash math.
+      const result = await computeLeanIMTPath(citizen.leafHash, leaves);
+      
       if (!result) { showAlert("error", "Leaf not found on chain. Not issued yet?"); setMerklePathSyncing(false); return; }
+      
       setMerklePath(result.path);
       setMerkleLeafIndex(result.leafIndex);
       setMerklePathRoot(result.root);
+      
       const stored = localStorage.getItem("citizen_license");
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -512,7 +556,7 @@ export default function WalletPage() {
     }
     setMerklePathSyncing(false);
   };
-
+  
   const handleLogout = () => { localStorage.removeItem("citizen_license"); window.location.href = "/"; };
 
   if (!citizen) return null;
@@ -542,20 +586,72 @@ export default function WalletPage() {
           <div><h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--text)", letterSpacing: "-.01em" }}>Share Identity</h3><p style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>Scan to verify your identity</p></div>
           <button onClick={() => setShowQRShare(false)} style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(255,255,255,.05)", border: "1.5px solid var(--border)", color: "var(--text3)", cursor: "pointer" }}>✕</button>
         </div>
-        <div style={{ background: "white", padding: 16, borderRadius: 16 }}><QRCodeSVG value={citizen.leafHash || "no-hash"} size={200} bgColor="#ffffff" fgColor="#0d0f14" level="M" /></div>
+        <div style={{ background: "white", padding: 16, borderRadius: 16 }}>
+          <QRCodeSVG 
+            value={citizen.leafHash?.startsWith("0x") ? citizen.leafHash : (citizen.leafHash ? "0x" + BigInt(citizen.leafHash).toString(16).padStart(64, "0") : "no-hash")} 
+            size={200} bgColor="#ffffff" fgColor="#0d0f14" level="M" 
+          />
+        </div>
       </div>
     </div>
   );
 
   const WalletExportQR = () => {
     const [show, setShow] = useState(false);
-    const exportPayload = `kakuho-wallet:${btoa(unescape(encodeURIComponent(JSON.stringify({ secret: citizen.secret, leafHash: citizen.leafHash, publicName: citizen.publicName, public_name: citizen.public_name, private_license_data: citizen.private_license_data, subject: citizen.subject }))))}`;
+    const [copied, setCopied] = useState(false);
+    const leafHex = citizen.leafHash?.startsWith("0x") ? citizen.leafHash : ("0x" + BigInt(citizen.leafHash || 0).toString(16).padStart(64, "0"));
+    const exportPayload = `kakuho-wallet:${btoa(unescape(encodeURIComponent(JSON.stringify({ 
+      secret: citizen.secret, 
+      leafHash: leafHex, 
+      leafCommitment: leafHex, 
+      publicName: citizen.publicName, 
+      public_name: citizen.public_name, 
+      private_license_data: citizen.private_license_data, 
+      subject: citizen.subject 
+    }))))}`;
+
+    const handleCopyPayload = () => {
+      const proofData = localStorage.getItem("pending_proof");
+      let proofPayload = {
+        type: "ZK_VERIFICATION",
+        proof: "",
+        publicInputs: [] as string[]
+      };
+
+      if (proofData) {
+        try {
+          const parsed = JSON.parse(proofData);
+          proofPayload.proof = parsed.proof || "";
+          proofPayload.publicInputs = parsed.publicInputs || [];
+        } catch (e) {
+          console.warn("Could not parse pending_proof from localStorage.");
+        }
+      }
+
+      navigator.clipboard.writeText(JSON.stringify(proofPayload, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {!show ? <button onClick={() => setShow(true)} className="btn-kk btn-ghost" style={{ width: "100%", fontSize: 12 }}>Show Export QR</button> :
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
             <div style={{ background: "white", padding: 14, borderRadius: 14 }}><QRCodeSVG value={exportPayload} size={260} bgColor="#ffffff" fgColor="#0d0f14" level="M" /></div>
             <button onClick={() => setShow(false)} className="btn-kk btn-ghost" style={{ width: "100%", fontSize: 11 }}>Hide</button>
+            <div className="kk-card" style={{ padding: 20, marginTop: 20 }}>
+              <button 
+                onClick={handleCopyPayload} 
+                className={`btn-kk ${copied ? "btn-green" : "btn-orange"}`} 
+                style={{ width: "100%" }}
+              >
+                {copied ? "✓ Copied to Clipboard!" : "COPY EXPORT PAYLOAD"}
+              </button>
+              <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 10, textAlign: "center" }}>
+                Copy this proof payload to send to the Verifier.
+              </p>
+            </div>
+            {/* 👆 END OF UI 👆 */}
           </div>
         }
       </div>
@@ -673,7 +769,8 @@ export default function WalletPage() {
         {[
           { id: "home", label: "Home", icon: <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg> },
           { id: "prove", label: "Prove", icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /></svg> },
-          { id: "verifier", label: "Verify", icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg> },
+         /* { id: "verifier", label: "Verify", icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg> }, 
+         */
           { id: "connections", label: "Partners", icon: <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" /></svg> }
         ].map(n => (
           <button key={n.id} onClick={() => handleNav(n.id)} className={`nav-item${tab === n.id ? " active" : ""}`}>{n.icon}<span>{n.label}</span></button>

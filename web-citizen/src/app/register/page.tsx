@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { generateSecret, createFinalMerkleLeaf, stringToFieldHex } from "@/lib/commitment";
+// ✅ IMPORT THE NEW DYNAMIC HASHER AND REMOVED generateSecret
+import { createFinalMerkleLeaf, stringToFieldHex, computePrivateLicenseData } from "@/lib/commitment";
 import mockCitizens, { type CitizenSubject } from "@/lib/mockData";
+// ✅ IMPORT YOUR MOCK SECRETS TO MATCH THE CITIZEN INDEX
+import mockSecrets from "@/lib/MockSecret"; 
 
 type Step = "select" | "committing" | "done";
 
@@ -40,32 +43,43 @@ export default function RegisterPage() {
     setProgress(0);
 
     try {
-      const { subject } = mockCitizens[selectedIndex];
-      const fullName = `${subject.firstName} ${subject.lastName}`;
-      const secret = generateSecret();
-      const privateLicenseData = stringToFieldHex(subject.licenseID);
-      const publicName = stringToFieldHex(fullName);
-
       const tick = setInterval(() => setProgress(p => Math.min(p + 5, 95)), 40);
-      const leafHash = createFinalMerkleLeaf(secret, privateLicenseData, publicName);
 
-      const res = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leafHash, publicName: fullName }),
-      });
-      const data = await res.json();
+      // --- 1. SAFE DATA EXTRACTION ---
+      const citizenRecord = mockCitizens[selectedIndex];
+      const subject = citizenRecord.subject;
+      const ltoSignature = citizenRecord.ltoSignature; 
+      
+      const mockSecretObj = mockSecrets[selectedIndex] || mockSecrets[0];
+      const secret = mockSecretObj.secret;
+      
+      const fullName = `${subject.firstName} ${subject.lastName}`;
 
-      clearInterval(tick);
-      setProgress(100);
+      // --- 2. BARRETENBERG HASHING ---
+      const privateData = await computePrivateLicenseData(
+        subject.licenseID,
+        subject.firstName,
+        subject.lastName,
+        subject.dateOfBirth,
+        subject.licenseType,
+        subject.expirationDate,
+        subject.restrictions,
+        subject.conditions,
+        subject.bloodType,
+        subject.address,
+        ltoSignature
+      );
 
+      const leafHash = await createFinalMerkleLeaf(secret, privateData, fullName);
+
+      // --- 4. LOCAL STORAGE SAVE (Fixed Variables) ---
       localStorage.setItem("citizen_license", JSON.stringify({
-        secret,
-        leafHash,
-        publicName: fullName,
-        public_name: publicName,
-        private_license_data: privateLicenseData,
-        subject,
+        secret: secret,
+        leafHash: leafHash,
+        publicName: fullName, // Plain text for UI
+        public_name: stringToFieldHex(fullName), // Formatted Hex for Noir Circuit
+        private_license_data: privateData, // Matches our new variable!
+        subject: subject,
         merkle_path: null,
         leaf_index: null,
         public_merkle_root: null,
@@ -73,11 +87,13 @@ export default function RegisterPage() {
 
       setResult({ leafHash, subject });
       setTimeout(() => setStep("done"), 300);
+      
     } catch (err: unknown) {
       setError((err as Error).message || "Something went wrong.");
       setStep("select");
     }
   };
+
 
   /* ── Committing screen ── */
   if (step === "committing") {
