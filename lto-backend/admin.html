@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LTO Master Command Center</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #e9ecef; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+        h1 { color: #004085; border-bottom: 3px solid #004085; padding-bottom: 15px; margin-bottom: 30px; text-align: center; }
+        h2 { color: #495057; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; margin-top: 40px; }
+        
+        .section { background: #f8f9fa; padding: 25px; border-radius: 8px; margin-bottom: 30px; border: 1px solid #e9ecef; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #495057; }
+        input { width: 100%; padding: 12px; border: 1px solid #ced4da; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        
+        button { width: 100%; padding: 15px; border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; transition: background-color 0.2s; }
+        .btn-register { background-color: #0d6efd; }
+        .btn-register:hover { background-color: #0b5ed7; }
+        .btn-verify { background-color: #198754; width: 48%; }
+        .btn-verify:hover { background-color: #157347; }
+        .btn-revoke { background-color: #dc3545; width: 48%; float: right; }
+        .btn-revoke:hover { background-color: #bb2d3b; }
+        
+        .button-group { display: flex; justify-content: space-between; margin-top: 20px; }
+        
+        #console { margin-top: 25px; padding: 20px; background: #212529; color: #20c997; font-family: 'Courier New', Courier, monospace; border-radius: 8px; display: none; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏛️ LTO Master Command Center</h1>
+    
+    <div class="section">
+        <h2>1. Registration Desk (Issue New ID)</h2>
+        <p style="color: #6c757d; font-size: 14px; margin-top: -10px; margin-bottom: 20px;">
+            Input the citizen's data. The backend will automatically generate the Zero-Knowledge Identity Commitment, build the Merkle Leaf, and sign it with the Admin ECDSA key.
+        </p>
+        
+        <div class="form-group">
+            <label>Citizen's Full Name</label>
+            <input type="text" id="regName" placeholder="e.g., Juan Dela Cruz">
+        </div>
+        <div class="form-group">
+            <label>License Number (Private Data)</label>
+            <input type="text" id="regLicense" placeholder="e.g., N01-24-123456">
+        </div>
+        <div class="form-group">
+            <label>Secret PIN (4 Digits)</label>
+            <input type="password" id="regSecret" placeholder="e.g., 1234">
+        </div>
+        
+        <button class="btn-register" onclick="registerDriver()">🖨️ Generate Digital License</button>
+    </div>
+
+    <div class="section">
+        <h2>2. Security Checkpoint</h2>
+        
+        <div class="form-group">
+            <label>Target ZKP Hash (Scan Result)</label>
+            <input type="text" id="targetHash" placeholder="Paste the generated hash here...">
+        </div>
+        <div class="form-group">
+            <label>Admin Authorization Password</label>
+            <input type="password" id="adminPassword" placeholder="Required only for Revocation">
+        </div>
+
+        <div class="button-group">
+            <button class="btn-verify" onclick="verifyHash()">✅ VERIFY ID</button>
+            <button class="btn-revoke" onclick="revokeHash()">🚨 REVOKE ID</button>
+        </div>
+    </div>
+
+    <div id="console"></div>
+</div>
+
+<script>
+    // --- THE REGISTRATION LOGIC ---
+    async function registerDriver() {
+        const name = document.getElementById('regName').value;
+        const license = document.getElementById('regLicense').value;
+        const secret = document.getElementById('regSecret').value;
+        const consoleBox = document.getElementById('console');
+        
+        if (!name || !license || !secret) {
+            alert("Please fill in all registration fields.");
+            return;
+        }
+
+        consoleBox.style.display = 'block';
+        consoleBox.innerHTML = `Processing Identity Commitment for ${name}...`;
+
+        // We prepare the payload exactly how the backend expects it
+        const payload = {
+            rawName: name,
+            public_name: name, // In a real app, this might be hashed first by the frontend, but for your demo, this works perfectly.
+            private_license_data: license,
+            secret: secret
+        };
+
+        try {
+            const response = await fetch('http://localhost:3000/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                // We format the JSON to look pretty on the screen
+                consoleBox.innerHTML = `[SUCCESS] License Issued!\n\n📋 Final Payload (Ready for QR Code):\n${JSON.stringify(data, null, 2)}`;
+                // Automatically copy the hash to the verify box to make testing easier!
+                document.getElementById('targetHash').value = data.leafHash;
+            } else {
+                consoleBox.innerHTML = `[ERROR] ${data.message || 'Registration failed.'}`;
+            }
+        } catch (error) {
+            consoleBox.innerHTML = "CRITICAL ERROR: Cannot reach Node.js Backend. Is index.js running?";
+        }
+    }
+
+    // --- THE VERIFY LOGIC ---
+    async function verifyHash() {
+        const hash = document.getElementById('targetHash').value;
+        const consoleBox = document.getElementById('console');
+        
+        if (!hash) { alert("Please enter a hash to verify."); return; }
+        
+        consoleBox.style.display = 'block';
+        consoleBox.innerHTML = "Scanning database...";
+
+        try {
+            const response = await fetch('http://localhost:3000/api/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ leafHash: hash })
+            });
+            const data = await response.json();
+            consoleBox.innerHTML = `[VERIFY RESULT]: ${data.status}\nMessage: ${data.message}`;
+        } catch (error) {
+            consoleBox.innerHTML = "CRITICAL ERROR: Cannot reach Node.js Backend.";
+        }
+    }
+
+    // --- THE REVOKE LOGIC ---
+    async function revokeHash() {
+        const hash = document.getElementById('targetHash').value;
+        const password = document.getElementById('adminPassword').value;
+        const consoleBox = document.getElementById('console');
+        
+        if (!hash) { alert("Please enter a hash to revoke."); return; }
+        if (!password) { alert("Admin password is required to revoke a license."); return; }
+
+        consoleBox.style.display = 'block';
+        consoleBox.innerHTML = "Processing revocation request...";
+
+        try {
+            const response = await fetch('http://localhost:3000/api/revoke', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetLeafHash: hash, adminPassword: password })
+            });
+            const data = await response.json();
+            consoleBox.innerHTML = `[REVOKE RESULT]: ${data.status}\nMessage: ${data.message}`;
+        } catch (error) {
+            consoleBox.innerHTML = "CRITICAL ERROR: Cannot reach Node.js Backend.";
+        }
+    }
+</script>
+
+</body>
+</html>
