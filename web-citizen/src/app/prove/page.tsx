@@ -5,6 +5,19 @@ import Link from "next/link";
 import { generateIdentityProof } from "@/utils/zk-prove";
 import { fetchAllLeaves, computeLeanIMTPath, fetchRoot } from "@/utils/chain";
 
+const decodeHexName = (hexString: string) => {
+    let str = '';
+    // Start at index 2 to skip the "0x"
+    for (let i = 2; i < hexString.length; i += 2) {
+        const charCode = parseInt(hexString.substring(i, i + 2), 16);
+        // Ignore the '00' padding bytes, only convert actual text
+        if (charCode > 0) { 
+            str += String.fromCharCode(charCode);
+        }
+    }
+    return str;
+};
+
 const STEPS = [
   { label: "Fetching Merkle root from blockchain", sub: "Reading on-chain state…" },
   { label: "Computing Merkle inclusion path", sub: "Building proof witness…" },
@@ -73,7 +86,7 @@ export default function ProvePage() {
 
       setCurrentStep(2);
 
-      // 4. Pass those 6 exact variables into generateIdentityProof()
+      // 4. Pass those 6 exact variables into  IdentityProof()
       console.log("WAIT, what is the raw name before translation?:", public_name);
       const result = await generateIdentityProof(
         secret,
@@ -270,12 +283,16 @@ export default function ProvePage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div>
                     <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 5 }}>Public Inputs</span>
-                    <code style={{ display: "block", background: "rgba(0,0,0,.25)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 11, fontFamily: "var(--font-mono)", color: "oklch(0.72 0.18 200)", wordBreak: "break-all", lineHeight: 1.7 }}>{proofData.publicInputs?.[0] ?? "—"}</code>
+                    <p className="text-xl text-emerald-400 font-bold">
+                        {proofData.publicInputs?.[0] ? decodeHexName(proofData.publicInputs[0]) : "—"}
+                    </p>
                   </div>
-                  <div>
-                    <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 5 }}>Proof Bytes (truncated)</span>
-                    <code style={{ display: "block", background: "rgba(0,0,0,.25)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text3)", wordBreak: "break-all", lineHeight: 1.7 }}>{proofData.proof.substring(0, 120)}…</code>
-                  </div>
+                  <details className="mt-4 border border-gray-700 rounded-md p-2 text-sm text-gray-500 cursor-pointer">
+                      <summary className="font-semibold outline-none">View Raw Cryptographic Proof (Advanced)</summary>
+                      <div className="mt-2 p-2 bg-black rounded break-all h-32 overflow-y-auto">
+                          {proofData.proof}
+                      </div>
+                  </details>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: .28 }}>
                   <svg width="11" height="11" fill="white" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>

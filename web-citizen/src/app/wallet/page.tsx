@@ -195,7 +195,7 @@ const DesktopSidebar = ({ active, setActive, citizen, onLogout, hasUnread, onNot
       }}>
         <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" /></svg>
         <span style={{ fontSize: 12, fontWeight: 600 }}>Activity</span>
-        {hasUnread && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--red)", marginLeft: "auto", boxShadow: "0 0 6px var(--red)" }} />}
+        {hasUnread && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--green)", marginLeft: "auto", boxShadow: "0 0 6px var(--green)" }} />}
       </button>
 
       {notifOpen && (
@@ -230,7 +230,7 @@ const DesktopSidebar = ({ active, setActive, citizen, onLogout, hasUnread, onNot
 );
 
 /* ── Credential card ── */
-const CredentialCard = ({ data, onAlert }: { data: any; onAlert?: (type: "success" | "error", msg: string) => void }) => {
+const CredentialCard = ({ data, isAnchored, onAlert }: { data: any; isAnchored?: boolean; onAlert?: (type: "success" | "error", msg: string) => void }) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [copiedLeaf, setCopiedLeaf] = useState(false);
 
@@ -270,9 +270,9 @@ const CredentialCard = ({ data, onAlert }: { data: any; onAlert?: (type: "succes
                 <p style={{ fontSize: 9.5, fontWeight: 800, color: "white", letterSpacing: ".04em", textTransform: "uppercase", marginTop: 3, lineHeight: 1.2 }}>Land Transportation Office</p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: 8 }}>
-                <span className="badge-kk badge-green" style={{ fontSize: 7, padding: "3px 7px", whiteSpace: "nowrap" }}>
-                  <div style={{ width: 5, height: 5, borderRadius: "50%" }} className="dot-green anim-pulse" />
-                  Verified
+                <span className={`badge-kk ${isAnchored ? 'badge-green' : 'badge-orange'}`} style={{ fontSize: 7, padding: "3px 7px", whiteSpace: "nowrap" }}>
+                  <div style={{ width: 5, height: 5, borderRadius: "50%" }} className={`${isAnchored ? 'dot-green' : 'dot-orange'} anim-pulse`} />
+                  {isAnchored ? "Anchored On-Chain" : "Pending Anchor"}
                 </span>
                 <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="13" height="13" fill="white" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" opacity=".9" /></svg>
@@ -342,6 +342,7 @@ export default function WalletPage() {
   const [showScanner, setShowScanner] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
+  const [isAnchored, setIsAnchored] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [alert, setAlert] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [showQRShare, setShowQRShare] = useState(false);
@@ -416,6 +417,7 @@ export default function WalletPage() {
         });
 
         if (active) {
+          if (history.length > 0) setIsAnchored(true);
           setNotifications(prev => {
             const existingIds = new Set(prev.map(n => n.id));
             const newHistory = history.filter(n => !existingIds.has(n.id));
@@ -443,6 +445,7 @@ export default function WalletPage() {
               time: "Just now"
             }, ...prev]);
             setHasUnread(true);
+            setIsAnchored(true);
             fetchRoot().then(root => { if (active) setChainRoot(root || null); });
           }
         });
@@ -758,7 +761,7 @@ const handleSyncMerklePath = async () => {
           {tab === "home" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }} className="anim-fade-up">
               <h3 style={{ fontSize: 14, fontWeight: 700 }}>My Credentials</h3>
-              <CredentialCard data={citizen} onAlert={showAlert} />
+              <CredentialCard data={citizen} isAnchored={isAnchored} onAlert={showAlert} />
             </div>
           )}
           {tab === "connections" && <ConnectionsView />}
