@@ -4,14 +4,14 @@ async function runManualTest() {
 
     // These are the exact Hexadecimal leaf hashes from your MongoDB screenshots
     // Index 0
-    const lorenaHash = "0x21bc90e5b47f11f172e79bfb3c3b65d2a1ca6999793ab846352f283442532c8b";
+    const lorenaHash = "0x2fb26680753a84a125f82c3583725d1db44d98ea21aa2a8b7e8a11eb36436bba";
     // Index 1
-    const enriqueHash = "0x20843a0db3a6160d93e5d8f9f7ca5e4328ce82b90785251da4ed080a8eca616d";
+    const enriqueHash = "0x1eaee6ef107cecccd76424b92959d0db18f06711edc88fb2e73249c8616eafd5";
 
     const tree = new LTOMerkleTree();
 
     // Initialize the tree with only these two users
-    console.log("Feeding leaves to Pedersen engine...");
+    console.log("Feeding leaves to Poseidon2 engine...");
     await tree.initialize([lorenaHash, enriqueHash]);
 
     // Calculate the Root

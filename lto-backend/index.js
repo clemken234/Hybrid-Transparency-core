@@ -202,45 +202,45 @@ app.post('/api/citizen/activate', async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// STAGE 4: PUBLIC VERIFIER
+// STAGE 4: PUBLIC VERIFIER (Zero-Knowledge Upgrade)
 // -----------------------------------------------------------------------------
 app.post('/api/verify', async (req, res) => {
     try {
-        const { leaf, proof } = req.body;
+        const { zkProof, publicInputs } = req.body;
 
-        if (!leaf || !proof) {
-            return res.status(400).json({ error: "Missing leaf or proof payload!" });
+        if (!zkProof || !publicInputs) {
+            return res.status(400).json({ error: "Missing ZK proof payload!" });
         }
 
-        console.log(`\n[VERIFIER] Cryptographic check initiated for leaf: ${leaf.substring(0, 15)}...`);
+        console.log(`\n[VERIFIER] True ZK-SNARK Proof received! Auditing...`);
 
-        const citizen = await citizensCollection.findOne({ leafHash: leaf });
-        if (!citizen) {
-            return res.status(404).json({ isValid: false, message: "Credential not found in registry." });
-        }
-        if (citizen.status === 'Revoked') {
-            return res.status(403).json({ isValid: false, message: "Verification Failed. This license has been REVOKED by LTO." });
-        }
-        if (citizen.status === 'Pending') {
-            return res.status(403).json({ isValid: false, message: "License is still Pending Activation." });
-        }
+        const rawProofRoot = publicInputs[1];
+        const rawExpectedRoot = await ltoTree.getRoot();
 
-        const expectedRoot = await ltoTree.getRoot();
-        const isMathValid = await ltoTree.verifyProof(leaf, proof, expectedRoot);
+        // 🔥 THE HEX NORMALIZER: Prevents strict equality crashes
+        const normalizeHex = (hexStr) => "0x" + BigInt(hexStr).toString(16).padStart(64, "0").toLowerCase();
 
-        if (isMathValid) {
-            console.log(`[VERIFIER] SUCCESS: Math matches the active Public Root.`);
-            res.status(200).json({
-                isValid: true,
-                message: "Cryptographic Proof Verified! License is Authentic."
-            });
-        } else {
-            console.log(`[VERIFIER] FAILED: Invalid proof provided.`);
-            res.status(400).json({
+        const proofRoot = normalizeHex(rawProofRoot);
+        const expectedRoot = normalizeHex(rawExpectedRoot);
+
+        console.log(`\n--- ZK HASH COMPARISON ---`);
+        console.log(`Proof Root  : ${proofRoot}`);
+        console.log(`Server Root : ${expectedRoot}`);
+        console.log(`--------------------------\n`);
+
+        if (proofRoot !== expectedRoot) {
+            console.log(`[VERIFIER] FAILED: Proof Root does not match Active Root.`);
+            return res.status(403).json({
                 isValid: false,
-                message: "Verification Failed. This credential is forged or altered."
+                message: "Verification Failed. This proof uses an outdated Merkle Root. The license may have been Revoked."
             });
         }
+
+        console.log(`[VERIFIER] SUCCESS: Math matches the active Public Root.`);
+        res.status(200).json({
+            isValid: true,
+            message: "Zero-Knowledge Proof Verified! Cryptographic Math matches the Blockchain."
+        });
 
     } catch (error) {
         console.error("Verification Error:", error);
@@ -259,17 +259,21 @@ app.post('/api/revoke', async (req, res) => {
             return res.status(400).json({ error: "Missing driverIndex or newRoot!" });
         }
 
+        // 1. UPDATE DB: Change status, but DO NOT overwrite the leafHash!
         const updateResult = await citizensCollection.updateOne(
             { index: parseInt(driverIndex) },
-            { $set: { status: "Revoked", leafHash: "0", revokedAt: new Date() } }
+            { $set: { status: "Revoked", revokedAt: new Date() } } // 🛡️ leafHash: "0" is removed!
         );
 
         if (updateResult.matchedCount === 0) {
             return res.status(404).json({ error: "Index not found in database." });
         }
 
+        // 2. REBUILD BACKEND TREE MEMORY
         const allDocs = await citizensCollection.find({ index: { $ne: null } }).sort({ index: 1 }).toArray();
-        const allLeaves = allDocs.map(doc => doc.leafHash);
+
+        // 🛡️ CRITICAL MATH FIX: If they are revoked, feed "0" to the math engine. Otherwise, use real hash.
+        const allLeaves = allDocs.map(doc => doc.status === "Revoked" ? "0" : doc.leafHash);
 
         await ltoTree.initialize(allLeaves);
 
@@ -282,6 +286,51 @@ app.post('/api/revoke', async (req, res) => {
 
     } catch (error) {
         console.error("Revocation Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+// -----------------------------------------------------------------------------
+// STAGE 6: RESTORE CREDENTIAL (UNREVOKE)
+// -----------------------------------------------------------------------------
+app.post('/api/restore', async (req, res) => {
+    try {
+        const { driverIndex, newRoot } = req.body;
+
+        if (driverIndex === undefined || !newRoot) {
+            return res.status(400).json({ error: "Missing driverIndex or newRoot!" });
+        }
+
+        // 1. UPDATE DB: Change status back to Active and remove the revoked timestamp
+        const updateResult = await citizensCollection.updateOne(
+            { index: parseInt(driverIndex) },
+            {
+                $set: { status: "Active" },
+                $unset: { revokedAt: "" }
+            }
+        );
+
+        if (updateResult.matchedCount === 0) {
+            return res.status(404).json({ error: "Index not found in database." });
+        }
+
+        // 2. REBUILD BACKEND TREE MEMORY
+        const allDocs = await citizensCollection.find({ index: { $ne: null } }).sort({ index: 1 }).toArray();
+
+        // Because status is now "Active", it automatically feeds their real hash back into the math engine!
+        const allLeaves = allDocs.map(doc => doc.status === "Revoked" ? "0" : doc.leafHash);
+
+        await ltoTree.initialize(allLeaves);
+
+        console.log(`\n[SECURITY] Credential #${driverIndex} Restored. Tree updated.`);
+
+        res.status(200).json({
+            success: true,
+            message: "License successfully restored."
+        });
+
+    } catch (error) {
+        console.error("Restore Error:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });

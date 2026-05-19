@@ -1,0 +1,433 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+crypto.js
+db.js
+get-data.js
+merkleTree.js
+mockData.js
+testMath.js
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="crypto.js">
+// utils/crypto.js
+import { ethers } from 'ethers';
+import { Barretenberg, Fr } from '@aztec/bb.js'; // Notice: We import Barretenberg and Fr!
+import 'dotenv/config';
+
+// --- ECDSA ADMIN WALLET ---
+const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY;
+if (!ADMIN_PRIVATE_KEY) throw new Error("CRITICAL: ADMIN_PRIVATE_KEY missing from .env");
+const adminWallet = new ethers.Wallet(ADMIN_PRIVATE_KEY);
+
+// --- 🛑 POSEIDON ZKP LEAF GENERATOR 🛑 ---
+export async function createFinalMerkleLeaf(secret, private_license_data, public_name) {
+    // 1. Turn on the WebAssembly Poseidon Engine first!
+    const bb = await Barretenberg.new();
+
+    // 2. Format your fields using Fr exactly like yesterday
+    const secretField = Fr.fromString(secret || "0");
+    const privateDataField = Fr.fromString(private_license_data || "0");
+    const publicNameField = Fr.fromString(public_name || "0");
+
+    // 3. Run the pure poseidon2Hash math! (Matches your Leader exactly)
+    const leafHashField = await bb.poseidon2Hash([secretField, privateDataField, publicNameField]);
+    
+    return leafHashField.toString(); 
+}
+
+// --- 🛡️ ECDSA RUBBER STAMP ---
+export async function signCredential(finalLeafHash, licenseID) {
+    const messageString = JSON.stringify({ leaf: finalLeafHash, id: licenseID });
+    const signature = await adminWallet.signMessage(messageString); 
+    
+    return {
+        signature: signature,
+        signedBy: adminWallet.address
+    };
+}
+</file>
+
+<file path="db.js">
+// lto-backend/utils/db.js
+const mongoose = require('mongoose');
+require('dotenv').config();
+
+const connectDB = async () => {
+    try {
+        // Replace MONGO_URI with whatever variable name is in your .env file
+        const conn = await mongoose.connect(process.env.MONGO_URI);
+        console.log(`[DATABASE] MongoDB Connected: ${conn.connection.host}`);
+    } catch (error) {
+        console.error(`[DATABASE ERROR]: ${error.message}`);
+        process.exit(1);
+    }
+};
+
+module.exports = connectDB;
+</file>
+
+<file path="get-data.js">
+const { connectToDatabase } = require("./utils/db");
+
+async function getCredential(leaf) {
+    const db = await connectToDatabase();
+    const user = await db.collection("identities").findOne({ "registryMetadata.merkleLeaf": leaf });
+    return user;
+}
+
+module.exports = { getCredential };
+</file>
+
+<file path="merkleTree.js">
+import { Barretenberg } from '@aztec/bb.js';
+
+/**
+ * LTOMerkleTree Version 2.0 (Poseidon2 - Leader's Logic)
+ * Hardcoded to Depth 20 to match Noir ZK Circuit constraints.
+ */
+export class LTOMerkleTree {
+    constructor() {
+        this.leaves = [];
+        this.bb = null;
+        this.zeroHashes = [];
+        this.DEPTH = 20;
+    }
+
+    // 1. SAFETY HELPER: Pads to 64 chars
+    _toPaddedHex(val) {
+        if (val === "0" || !val) return "0x" + "00".repeat(32);
+        let hex = typeof val === "string" && val.startsWith("0x") ? val : "0x" + BigInt(val).toString(16);
+        return "0x" + hex.replace("0x", "").padStart(64, "0");
+    }
+
+    // 2. EXACTLY YOUR LEADER'S HASH PAIR LOGIC (No Fr!)
+    async _hashPair(leftStr, rightStr) {
+        // Ensure pure 0x-prefixed hex strings
+        const lHex = leftStr.startsWith('0x') ? leftStr : `0x${leftStr}`;
+        const rHex = rightStr.startsWith('0x') ? rightStr : `0x${rightStr}`;
+
+        // Pass the raw string array directly!
+        // @ts-ignore
+        const response = await this.bb.poseidon2Hash([lHex, rHex]);
+
+        let hashResult = response;
+        if (typeof response === 'object' && response !== null && !(response instanceof Uint8Array)) {
+            hashResult = response.output || response.hash || Object.values(response)[0] || response;
+        }
+
+        if (hashResult instanceof Uint8Array) {
+            return "0x" + Array.from(hashResult).map((b) => b.toString(16).padStart(2, "0")).join("");
+        }
+        if (typeof hashResult === 'string') {
+            return hashResult.startsWith('0x') ? hashResult : `0x${hashResult}`;
+        }
+        return lHex;
+    }
+
+    // 3. INITIALIZE THE TREE (Leader's Precompute Logic)
+    async initialize(existingLeaves = []) {
+        if (!this.bb) {
+            this.bb = await Barretenberg.new();
+        }
+
+        const ZERO_HASH = "0x" + "00".repeat(32);
+        this.zeroHashes = [ZERO_HASH];
+
+        // Precompute empty branches
+        for (let i = 0; i < this.DEPTH; i++) {
+            const nextZero = await this._hashPair(this.zeroHashes[i], this.zeroHashes[i]);
+            this.zeroHashes.push(nextZero);
+        }
+
+        this.leaves = existingLeaves.map(l => this._toPaddedHex(l));
+    }
+
+    // 4. CALCULATE ROOT (Leader's Tree Climbing Logic)
+    async getRoot() {
+        if (this.leaves.length === 0) {
+            return this.zeroHashes[this.DEPTH];
+        }
+
+        let currentLevel = [...this.leaves];
+
+        for (let level = 0; level < this.DEPTH; level++) {
+            const nextLevel = [];
+            for (let i = 0; i < currentLevel.length; i += 2) {
+                const leftStr = currentLevel[i];
+                const rightStr = (i + 1 < currentLevel.length) ? currentLevel[i + 1] : this.zeroHashes[level];
+
+                const hash = await this._hashPair(leftStr, rightStr);
+                nextLevel.push(hash);
+            }
+            currentLevel = nextLevel;
+        }
+        return currentLevel[0];
+    }
+
+    // 5. GENERATE PROOF
+    async getProof(index) {
+        let proof = [];
+        let currentLevel = [...this.leaves];
+        let idx = index;
+
+        for (let level = 0; level < this.DEPTH; level++) {
+            const nextLevel = [];
+            const isRight = idx % 2 === 1;
+            const siblingIdx = isRight ? idx - 1 : idx + 1;
+
+            let sibling = (siblingIdx < currentLevel.length) ? currentLevel[siblingIdx] : this.zeroHashes[level];
+            proof.push(this._toPaddedHex(sibling));
+
+            for (let i = 0; i < currentLevel.length; i += 2) {
+                const leftStr = currentLevel[i];
+                const rightStr = (i + 1 < currentLevel.length) ? currentLevel[i + 1] : this.zeroHashes[level];
+
+                const hash = await this._hashPair(leftStr, rightStr);
+                nextLevel.push(hash);
+            }
+
+            currentLevel = nextLevel;
+            idx = Math.floor(idx / 2);
+        }
+
+        return proof;
+    }
+}
+</file>
+
+<file path="mockData.js">
+// utils/mockData.js
+
+const mockData = [
+    {
+        subject: {
+            licenseID: "N01-26-835232",
+            firstName: "Lorena",
+            lastName: "Morales",
+            dateOfBirth: "2004-04-25",
+            licenseType: "Non-Professional",
+            expirationDate: "2033-02-04",
+            restrictions: "None",
+            conditions: "None",
+            bloodType: "O+",
+            address: "260 Busa St., Brgy. Krus na Ligas, Valenzuela"
+        },
+        ltoSignature: "0xab119927971a5af22622d2fd26945869df19686c1eecd55b5f9f55807836a5e7765c6a24ebe0c84a1836a7820dc28bef3f12dc31b"
+    },
+    {
+        subject: {
+            licenseID: "N01-26-462076",
+            firstName: "Enrique",
+            lastName: "Solis",
+            dateOfBirth: "1996-07-23",
+            licenseType: "Non-Professional",
+            expirationDate: "2036-08-19",
+            restrictions: "None",
+            conditions: "None",
+            bloodType: "B-",
+            address: "849 Del Pilar St., Brgy. Guadalupe Nuevo, Malabon"
+        },
+        ltoSignature: "0x119394b4bdcbd33565889a5c8ecded0ff721ce1cad0d465c8b06771de4f004945e58862080ae54b40236b0ebfc988e0ced4eff8a1c28271044a201d0737709041c"
+    },
+    {
+        subject: {
+            licenseID: "N01-26-540384",
+            firstName: "Claudia",
+            lastName: "Ortiz",
+            dateOfBirth: "1984-09-04",
+            licenseType: "Non-Professional",
+            expirationDate: "2032-08-16",
+            restrictions: "1",
+            conditions: "None",
+            bloodType: "B+",
+            address: "354 Binhagan St, Brgy. Bel-Air, Malabon"
+        },
+        ltoSignature: "0x0209047c737b8137fef9725bb755b20096245ba69dd2c33eb4f78661137c732c687a1a2febe1d3b870a72cd50c9e27d1fa2a7738689967c052b74d8cae14eeff1b"
+    },
+    {
+        subject: {
+            licenseID: "N01-26-439637",
+            firstName: "Emilio",
+            lastName: "Villanueva",
+            dateOfBirth: "2000-09-26",
+            licenseType: "Non-Professional",
+            expirationDate: "2035-07-24",
+            restrictions: "1, 2",
+            conditions: "None",
+            bloodType: "AB+",
+            address: "349 Sto Nino St., Brgy. Guadalupe Nuevo, Caloocan"
+        },
+        ltoSignature: "0x7d046c11d86f05811f4dda9741e44176802b1685f895345c48b192462b033fff0728f1f2f5b7a5c72bd9108c9dc4f5ad5accb3bd275553df0b94919566e03b391b"
+    },
+    {
+        subject: {
+            licenseID: "N01-26-223046",
+            firstName: "Elena",
+            lastName: "Morales",
+            dateOfBirth: "1981-07-25",
+            licenseType: "Non-Professional",
+            expirationDate: "2033-01-05",
+            restrictions: "None",
+            conditions: "None",
+            bloodType: "O-",
+            address: "820 Silangan St., Brgy. Barrio San Jose, Makati"
+        },
+        ltoSignature: "0x3dc947513d12bbb7c3506e544994322dce7409371b0b3c903108f4e4bfc6fda9356f50d48a83b1024738a0aedbfb082abaf9aab2d49658735e912007f3041cb81c"
+    },
+    {
+        subject: {
+            licenseID: "N01-26-927688",
+            firstName: "Fernando",
+            lastName: "Estrada",
+            dateOfBirth: "1998-01-10",
+            licenseType: "Non-Professional",
+            expirationDate: "2029-11-06",
+            restrictions: "1, 2",
+            conditions: "None",
+            bloodType: "AB+",
+            address: "935 Mauban St., Brgy. Tanyang, Quezon City"
+        },
+        ltoSignature: "0xed169e2d45b2faa913ca6d6eacd5bed1d262a13d83af53689dcc2df136393d5f32f89daa652f94da1669843f4c6f3a7ca5205564aee35be385e6f09f597e67d11c"
+    },
+    {
+        subject: {
+            licenseID: "N01-26-456629",
+            firstName: "Sergio",
+            lastName: "Campos",
+            dateOfBirth: "1989-08-04",
+            licenseType: "Non-Professional",
+            expirationDate: "2032-04-06",
+            restrictions: "1",
+            conditions: "None",
+            bloodType: "B+",
+            address: "475 bantayan St., Brgy. San Lorenzo, Malabon"
+        },
+        ltoSignature: "0x273e0729fee4f9bd24380ce87e2af6fb157c6e4db0a920d94ea11b6d43df6d1b64b3aca4f0fa1bc850c8a671412c737aee902dc12e2610ec3c1bc7a198f05fd61c"
+    },
+    {
+        subject: {
+            licenseID: "N01-26-838362",
+            firstName: "Armando",
+            lastName: "Alvarez",
+            dateOfBirth: "1974-06-10",
+            licenseType: "Non-Professional",
+            expirationDate: "2029-06-16",
+            restrictions: "2",
+            conditions: "None",
+            bloodType: "O-",
+            address: "451 Sto Nino St., Brgy. Pakanen, Parañaque"
+        },
+        ltoSignature: "0xe55fe65edc2dc9916b48e2c33457431936b2791ae88824870cfd71637bb8a63a0663756d2f5700b7892eacd01c02490a2b153c251250e271a0b655702a23245d1c"
+    },
+    {
+        subject: {
+            licenseID: "N01-26-458429",
+            firstName: "Federico",
+            lastName: "Garcia",
+            dateOfBirth: "2001-11-02",
+            licenseType: "Non-Professional",
+            expirationDate: "2036-01-15",
+            restrictions: "2",
+            conditions: "None",
+            bloodType: "B+",
+            address: "980 Tagaytay St., Brgy. Kapitolyo, Manila"
+        },
+        ltoSignature: "0xd79d4db41ba3dde6bce7827ccf49c7abf3c137a4eed7402eb7baa82508af8ae653106c89b4fb76d76293fd971e53cb9dfd0e9a4a2228bbb772b2991db8e676c01c"
+    },
+    {
+        subject: {
+            licenseID: "N01-26-401034",
+            firstName: "Isabella",
+            lastName: "Reyes",
+            dateOfBirth: "1975-04-02",
+            licenseType: "Non-Professional",
+            expirationDate: "2035-01-26",
+            restrictions: "None",
+            conditions: "None",
+            bloodType: "AB+",
+            address: "568 Lumban St., Brgy. Tanyang, Navotas"
+        },
+        ltoSignature: "0xd46178a946d393e1b31f3e5c8cece4d4417af649bb00f46ac8bea622f0b1f90d03416d2d3284bf0fcfd136b7075153b84b76b5113f303570db0a963cad0a47921c"
+    }
+];
+
+export const getMockDataArray = () => mockData;
+// Use this para pag-click ng "Generate", isa-isa niya kukunin
+export const getMockApplicant = () => {
+    return mockData[Math.floor(Math.random() * mockData.length)].subject;
+};
+</file>
+
+<file path="testMath.js">
+import { LTOMerkleTree } from './merkleTree.js';
+async function runManualTest() {
+    console.log("Starting Manual Merkle Tree Math Test...\n");
+
+    // These are the exact Hexadecimal leaf hashes from your MongoDB screenshots
+    // Index 0
+    const lorenaHash = "0x2fb26680753a84a125f82c3583725d1db44d98ea21aa2a8b7e8a11eb36436bba";
+    // Index 1
+    const enriqueHash = "0x1eaee6ef107cecccd76424b92959d0db18f06711edc88fb2e73249c8616eafd5";
+
+    const tree = new LTOMerkleTree();
+
+    // Initialize the tree with only these two users
+    console.log("Feeding leaves to Poseidon2 engine...");
+    await tree.initialize([lorenaHash, enriqueHash]);
+
+    // Calculate the Root
+    const calculatedRoot = await tree.getRoot();
+
+    console.log("\n==================================================");
+    console.log(" 🧪 MANUAL TEST CALCULATED ROOT:");
+    console.log(" " + calculatedRoot);
+    console.log("==================================================\n");
+}
+
+runManualTest().catch(console.error);
+</file>
+
+</files>
