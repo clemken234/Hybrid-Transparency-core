@@ -1,18 +1,22 @@
-use std::hash::pedersen_hash;
+use poseidon::poseidon2::Poseidon2;
+
+// The exact same Pair-Hash logic we wrote in Javascript!
+fn hash_pair(left: Field, right: Field) -> Field {
+    // We pass the 2 elements as an array, and tell it the length is 2
+    Poseidon2::hash([left, right], 2)
+}
 
 fn main(
-    // --- PRIVATE WITNESSES ---
     secret: Field,
     private_license_data: Field,
     merkle_path: [Field; 20],
     leaf_index: u32,
-    // --- PUBLIC INPUTS ---
     public_name: pub Field,
-    public_merkle_root: pub Field
+    public_merkle_root: pub Field,
 ) {
-    // CONSTRAINT 1: Leaf Reconstruction
-    // Hash the license and name first, then hash the secret with that result
-    let computed_leaf = pedersen_hash([secret, private_license_data, public_name]);
+    // Hash strictly in pairs using stdlib Poseidon2Hasher
+    let temp_hash = hash_pair(secret, private_license_data);
+    let computed_leaf = hash_pair(temp_hash, public_name);
 
     // TESTING (Will be REMOVED in Production)
     println(f"🔥 Noir Public Name: {public_name}");
@@ -23,26 +27,24 @@ fn main(
     println(f"🔥 Noir Merkle Path: {merkle_path}");
     // TESTING (Will be REMOVED in Production)
 
-    // CONSTRAINT 2: Merkle Inclusion Proof
+    // Climb the Merkle tree
     let mut computed_root = computed_leaf;
     let mut index = leaf_index;
 
     for i in 0..20 {
         let sibling = merkle_path[i];
-
         if index % 2 == 0 {
-            computed_root = pedersen_hash([computed_root, sibling]);
+            computed_root = hash_pair(computed_root, sibling);
         } else {
-            computed_root = pedersen_hash([sibling, computed_root]);
+            computed_root = hash_pair(sibling, computed_root);
         }
-
         index = index / 2;
     }
+
     // TESTING (Will be REMOVED in Production)
     println(f"🔥 Noir Computed Root: {computed_root}");
     println(f"🔥 Noir Public Merkle Root: {public_merkle_root}");
     // TESTING (Will be REMOVED in Production)
 
-    // CONSTRAINT 3: State Verification
     assert(computed_root == public_merkle_root);
 }

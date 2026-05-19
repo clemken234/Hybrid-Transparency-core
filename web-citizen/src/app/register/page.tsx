@@ -8,6 +8,7 @@ import { createFinalMerkleLeaf, stringToFieldHex, computePrivateLicenseData } fr
 import mockCitizens, { type CitizenSubject } from "@/lib/mockData";
 // ✅ IMPORT YOUR MOCK SECRETS TO MATCH THE CITIZEN INDEX
 import mockSecrets from "@/lib/MockSecret"; 
+import { Barretenberg } from '@aztec/bb.js';
 
 type Step = "select" | "committing" | "done";
 
@@ -42,43 +43,32 @@ export default function RegisterPage() {
     setStep("committing");
     setProgress(0);
 
+    // Declare outside so the finally block can access it!
+    let bb: any = null; 
+
     try {
       const tick = setInterval(() => setProgress(p => Math.min(p + 5, 95)), 40);
 
-      // --- 1. SAFE DATA EXTRACTION ---
       const citizenRecord = mockCitizens[selectedIndex];
       const subject = citizenRecord.subject;
       const ltoSignature = citizenRecord.ltoSignature; 
-      
       const mockSecretObj = mockSecrets[selectedIndex] || mockSecrets[0];
       const secret = mockSecretObj.secret;
-      
       const fullName = `${subject.firstName} ${subject.lastName}`;
 
       // --- 2. BARRETENBERG HASHING ---
-      const privateData = await computePrivateLicenseData(
-        subject.licenseID,
-        subject.firstName,
-        subject.lastName,
-        subject.dateOfBirth,
-        subject.licenseType,
-        subject.expirationDate,
-        subject.restrictions,
-        subject.conditions,
-        subject.bloodType,
-        subject.address,
-        ltoSignature
-      );
+      bb = await Barretenberg.new();
 
-      const leafHash = await createFinalMerkleLeaf(secret, privateData, fullName);
+      const privateData = await computePrivateLicenseData(bb, subject.licenseID, subject.firstName, subject.lastName, subject.dateOfBirth, subject.licenseType, subject.expirationDate, subject.restrictions, subject.conditions, subject.bloodType, subject.address, ltoSignature);
+      const leafHash = await createFinalMerkleLeaf(bb, secret, privateData, fullName);
 
-      // --- 4. LOCAL STORAGE SAVE (Fixed Variables) ---
+      // --- 4. LOCAL STORAGE SAVE ---
       localStorage.setItem("citizen_license", JSON.stringify({
         secret: secret,
         leafHash: leafHash,
-        publicName: fullName, // Plain text for UI
-        public_name: stringToFieldHex(fullName), // Formatted Hex for Noir Circuit
-        private_license_data: privateData, // Matches our new variable!
+        publicName: fullName, 
+        public_name: stringToFieldHex(fullName), 
+        private_license_data: privateData, 
         subject: subject,
         merkle_path: null,
         leaf_index: null,
@@ -93,7 +83,6 @@ export default function RegisterPage() {
       setStep("select");
     }
   };
-
 
   /* ── Committing screen ── */
   if (step === "committing") {

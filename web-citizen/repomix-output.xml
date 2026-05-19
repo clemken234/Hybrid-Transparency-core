@@ -1,0 +1,2643 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+src/
+  app/
+    prove/
+      page.tsx
+    register/
+      page.tsx
+    wallet/
+      page.tsx
+    favicon.ico
+    globals.css
+    layout.tsx
+    page.tsx
+  lib/
+    commitment.ts
+    mockData.ts
+    MockSecret.ts
+    test-hash.ts
+    test-root.ts
+  utils/
+    chain.ts
+    crypto.ts
+    hybrid_transparency.json
+    zk-prove.ts
+.gitignore
+eslint.config.mjs
+next.config.ts
+package.json
+postcss.config.mjs
+tsconfig.json
+vercel.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="src/app/prove/page.tsx">
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { generateIdentityProof } from "@/utils/zk-prove";
+import { fetchAllLeaves, computeLeanIMTPath, fetchRoot } from "@/utils/chain";
+
+const decodeHexName = (hexString: string) => {
+    let str = '';
+    // Start at index 2 to skip the "0x"
+    for (let i = 2; i < hexString.length; i += 2) {
+        const charCode = parseInt(hexString.substring(i, i + 2), 16);
+        // Ignore the '00' padding bytes, only convert actual text
+        if (charCode > 0) { 
+            str += String.fromCharCode(charCode);
+        }
+    }
+    return str;
+};
+
+const STEPS = [
+  { label: "Fetching Merkle root from blockchain", sub: "Reading on-chain state…" },
+  { label: "Computing Merkle inclusion path", sub: "Building proof witness…" },
+  { label: "Generating ZK proof", sub: "UltraHonk WASM ~30s…" },
+];
+
+export default function ProvePage() {
+  const [citizen, setCitizen] = useState<any>(null);
+  const [isProving, setIsProving] = useState(false);
+  const [proofData, setProofData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(-1);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("citizen_license");
+    if (raw) {
+      try {
+        setCitizen(JSON.parse(raw));
+      } catch {
+        localStorage.removeItem("citizen_license");
+      }
+    }
+  }, []);
+
+  const handleProve = async () => {
+    if (!citizen) return;
+    setIsProving(true);
+    setError(null);
+    setProofData(null);
+    setCurrentStep(0);
+
+    try {
+      // 1. Pull exact required variables from localStorage
+      const raw = localStorage.getItem("citizen_license");
+      if (!raw) throw new Error("No wallet found. Please register first.");
+      
+      const parsedData = JSON.parse(raw);
+      const secret = parsedData.secret;
+      const private_license_data = parsedData.private_license_data;
+      const public_name = parsedData.public_name;
+      const leafHash = parsedData.leafHash || parsedData.leaf_hash;
+
+      if (!secret || !private_license_data || !public_name || !leafHash) {
+        throw new Error("Missing identity variables in wallet. Please re-register.");
+      }
+
+      // 2. Call fetchAllLeaves()
+      const leaves = await fetchAllLeaves();
+      if (!leaves.length) throw new Error("No leaves found on chain. Please wait for your identity to be anchored.");
+
+      setCurrentStep(1);
+
+      // 3. await computeLeanIMTPath to get the dynamic path and root
+      const normLeaves = leaves.map((l: string) => l.toLowerCase());
+      const merkleResult = await computeLeanIMTPath(leafHash.toLowerCase(), normLeaves);
+      if (!merkleResult) throw new Error("Your identity is not yet anchored to the blockchain. Please wait for confirmation.");
+
+      const { path: merklePath, root, leafIndex } = merkleResult;
+      
+      const publicMerkleRoot = await fetchRoot();
+      if (!publicMerkleRoot) throw new Error("Could not fetch Merkle root from the blockchain.");
+
+      // ADD THESE TWO LINES:
+      console.log("🛑 Local Standard Root:", root);
+      console.log("🛑 Blockchain Root:", publicMerkleRoot);
+
+      setCurrentStep(2);
+
+      // 4. Pass those 6 exact variables into  IdentityProof()
+      console.log("WAIT, what is the raw name before translation?:", public_name);
+      const result = await generateIdentityProof(
+        secret,
+        private_license_data,
+        merklePath,
+        leafIndex,
+        public_name,
+        publicMerkleRoot
+      );
+
+      const updated = { ...citizen, merkle_path: merklePath, leaf_index: leafIndex, public_merkle_root: publicMerkleRoot };
+      localStorage.setItem("citizen_license", JSON.stringify(updated));
+
+      const history = JSON.parse(localStorage.getItem("proof_history") || "[]");
+      history.unshift({ ts: Date.now() });
+      localStorage.setItem("proof_history", JSON.stringify(history.slice(0, 20)));
+
+      // Store for verifier page — deleted after on-chain submission
+      localStorage.setItem("pending_proof", JSON.stringify(result));
+
+      setProofData(result);
+    } catch (err: unknown) {
+      setError((err as Error).message || "Proof generation failed.");
+    } finally {
+      setIsProving(false);
+      setCurrentStep(-1);
+    }
+  };
+
+  const handleDownloadProof = () => {
+    if (!proofData) return;
+    
+    // 1. Package your existing variables into a clean object
+    const exportData = {
+        proof: proofData.proof,
+        publicInputs: proofData.publicInputs
+    };
+
+    // 2. Convert it to a beautifully formatted JSON string (the '2' adds indents)
+    const jsonString = JSON.stringify(exportData, null, 2);
+
+    // 3. Create a temporary Blob (a file object in the browser's memory)
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    // 4. Create an invisible anchor tag to trigger the browser's native download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'zk_identity_proof.json'; // The exact filename you requested
+    
+    // 5. Append, click, and destroy
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url); // Clears the memory
+  };
+
+  if (!citizen) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, position: "relative" }}>
+        <div className="grid-bg" />
+        <div style={{ position: "relative", zIndex: 1, background: "var(--bg2)", border: "1.5px solid var(--border)", borderRadius: 24, padding: 32, maxWidth: 360, width: "100%", textAlign: "center", display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ width: 48, height: 48, background: "rgba(255,255,255,.05)", border: "1.5px solid var(--border)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
+            <svg width="24" height="24" fill="none" stroke="var(--text3)" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+          </div>
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", letterSpacing: "-.02em" }}>No Active Identity</h2>
+            <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 6, lineHeight: 1.6 }}>You need to log in first to generate a proof.</p>
+          </div>
+          <Link href="/wallet" className="btn-kk btn-orange" style={{ width: "100%" }}>Go to Wallet</Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+      <div className="grid-bg" />
+      <div style={{ position: "relative", zIndex: 1, flex: 1, display: "flex", flexDirection: "column", maxWidth: 860, margin: "0 auto", width: "100%", padding: "0 20px", overflow: "hidden" }}>
+
+        {/* Header */}
+        <header style={{ display: "flex", alignItems: "center", gap: 14, padding: "20px 0", borderBottom: "1.5px solid var(--border)" }}>
+          <Link href="/wallet" style={{
+            width: 36, height: 36, borderRadius: 11,
+            background: "var(--bg2)", border: "1.5px solid var(--border)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "var(--text2)", flexShrink: 0, textDecoration: "none",
+          }}>
+            <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" /></svg>
+          </Link>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.02em" }}>Identity Prover</h1>
+          </div>
+        </header>
+
+        {/* Two-col on desktop */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "20px 0 32px", flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" as any }} id="prove-cols">
+
+          {/* Identity card */}
+          <div className="kk-card" style={{ padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <span className="kk-label">Active Identity</span>
+              <span className="badge-kk badge-green">
+                <div style={{ width: 5, height: 5, borderRadius: "50%" }} className="dot-green anim-pulse" />
+                Loaded
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 4 }}>Public Name</span>
+                <code style={{ display: "block", background: "rgba(255,255,255,.03)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-mono)", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {citizen.firstName && citizen.lastName
+                    ? `${citizen.firstName} ${citizen.lastName}`
+                    : citizen.publicName || citizen.public_name || "—"}
+                </code>
+              </div>
+            </div>
+          </div>
+
+          {/* Right column */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }} id="prove-right">
+
+            {/* Pipeline */}
+            <div className="kk-card" style={{ padding: 20 }}>
+              <span className="kk-label" style={{ display: "block", marginBottom: 14 }}>Proof Pipeline</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {STEPS.map((s, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div className={`step-dot ${currentStep > i ? "step-done" : currentStep === i ? "step-active" : "step-idle"}`}>
+                      {currentStep > i
+                        ? <svg width="13" height="13" fill="none" stroke="#4ade80" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        : currentStep === i
+                        ? <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--orange)" }} className="anim-pulse" />
+                        : <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)" }}>{i + 1}</span>
+                      }
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{
+                        fontSize: 13, fontWeight: currentStep === i ? 700 : 500,
+                        color: currentStep === i ? "var(--text)" : currentStep > i ? "var(--text3)" : "rgba(238,240,248,.22)",
+                        transition: "all .3s",
+                        textDecoration: currentStep > i ? "line-through" : "none",
+                      }}>{s.label}</p>
+                      {currentStep === i && <p style={{ fontSize: 11, color: "var(--orange)", marginTop: 2 }}>{s.sub}</p>}
+                    </div>
+                    {currentStep === i && (
+                      <div className="anim-spin" style={{ width: 16, height: 16, border: "2px solid rgba(249,115,22,.2)", borderTopColor: "var(--orange)", borderRadius: "50%", flexShrink: 0 }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Info note */}
+            <div style={{ display: "flex", gap: 10, padding: "12px 14px", background: "rgba(255,255,255,.02)", border: "1.5px solid var(--border)", borderRadius: 12 }}>
+              <svg style={{ flexShrink: 0, marginTop: 1, opacity: .3 }} width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" /></svg>
+              <p style={{ fontSize: 11, color: "var(--text3)", lineHeight: 1.65 }}>Proof runs entirely in-browser — no private data leaves your device.</p>
+            </div>
+
+            {/* Prove button */}
+            <button onClick={handleProve} disabled={isProving}
+              className={`btn-kk ${isProving ? "btn-ghost" : "btn-cyan"}`}
+              style={{ width: "100%", fontSize: 14, padding: 16 }}>
+              {isProving ? (
+                <>
+                  <div className="anim-spin" style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,.2)", borderTopColor: "rgba(255,255,255,.6)", borderRadius: "50%", flexShrink: 0 }} />
+                  {currentStep >= 0 ? STEPS[currentStep].label.split(" ").slice(0, 3).join(" ") + "…" : "Working…"}
+                </>
+              ) : (
+                <>
+                  <svg width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                  Generate ZK Proof
+                </>
+              )}
+            </button>
+
+            {/* Error */}
+            {error && (
+              <div style={{ background: "rgba(239,68,68,.06)", border: "1.5px solid rgba(239,68,68,.2)", borderRadius: 14, padding: "14px 16px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <svg style={{ flexShrink: 0 }} width="15" height="15" fill="#f87171" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 13h-2v-2h2v2zm0-4h-2V7h2v4z" /></svg>
+                <p style={{ fontSize: 12, color: "#f87171", lineHeight: 1.6 }}>{error}</p>
+              </div>
+            )}
+
+            {/* Proof result */}
+            {proofData && (
+              <div style={{ background: "rgba(34,197,94,.04)", border: "1.5px solid rgba(34,197,94,.2)", borderRadius: 18, padding: 20, display: "flex", flexDirection: "column", gap: 14 }} className="anim-pop">
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(34,197,94,.12)", border: "1.5px solid rgba(34,197,94,.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg width="13" height="13" fill="none" stroke="#4ade80" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80", letterSpacing: ".07em", textTransform: "uppercase" }}>Proof Generated Successfully</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div>
+                    <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 5 }}>Public Inputs</span>
+                    <p className="text-xl text-emerald-400 font-bold">
+                        {proofData.publicInputs?.[0] ? decodeHexName(proofData.publicInputs[0]) : "—"}
+                    </p>
+                  </div>
+                  <details className="mt-4 border border-gray-700 rounded-md p-2 text-sm text-gray-500 cursor-pointer">
+                      <summary className="font-semibold outline-none">View Raw Cryptographic Proof (Advanced)</summary>
+                      <div className="mt-2 p-2 bg-black rounded break-all h-32 overflow-y-auto">
+                          {proofData.proof}
+                      </div>
+                  </details>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: .28 }}>
+                  <svg width="11" height="11" fill="white" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: "white", letterSpacing: ".25em", textTransform: "uppercase" }}>Verified by ZK Circuit · Kakuho</span>
+                </div>
+
+                <button 
+                    onClick={handleDownloadProof} 
+                    className="mt-4 px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded shadow-md transition-all"
+                    style={{ border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                >
+                    💾 Download Proof (JSON)
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @media(min-width:768px){
+          #prove-cols { flex-direction:row !important; gap:24px !important; align-items:flex-start !important; }
+          #prove-cols > *:first-child { flex:1.3; }
+          #prove-right { flex:1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/register/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+// ✅ IMPORT THE NEW DYNAMIC HASHER AND REMOVED generateSecret
+import { createFinalMerkleLeaf, stringToFieldHex, computePrivateLicenseData } from "@/lib/commitment";
+import mockCitizens, { type CitizenSubject } from "@/lib/mockData";
+// ✅ IMPORT YOUR MOCK SECRETS TO MATCH THE CITIZEN INDEX
+import mockSecrets from "@/lib/MockSecret"; 
+import { Barretenberg } from '@aztec/bb.js';
+
+type Step = "select" | "committing" | "done";
+
+const KakuhoLogo = ({ size = 38 }: { size?: number }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{
+      width: size, height: size, borderRadius: Math.round(size * .3),
+      background: "rgba(249,115,22,.12)", border: "1.5px solid rgba(249,115,22,.28)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      boxShadow: "0 0 18px rgba(249,115,22,.12)",
+    }}>
+      <svg width={size * .55} height={size * .55} viewBox="0 0 24 24" fill="none">
+        <path d="M12 4L5 7V11C5 15.42 8 19.54 12 21C16 19.54 19 15.42 19 11V7L12 4Z" fill="#F97316" opacity=".9" />
+      </svg>
+    </div>
+    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".35em", color: "rgba(238,240,248,.35)", textTransform: "uppercase" }}>Kakuho</span>
+  </div>
+);
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const [step, setStep] = useState<Step>("select");
+  const [error, setError] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [result, setResult] = useState<{ leafHash: string; subject: CitizenSubject } | null>(null);
+
+  const handleRegister = async () => {
+    if (selectedIndex === null) return;
+    setError(null);
+    setStep("committing");
+    setProgress(0);
+
+    // Declare outside so the finally block can access it!
+    let bb: any = null; 
+
+    try {
+      const tick = setInterval(() => setProgress(p => Math.min(p + 5, 95)), 40);
+
+      const citizenRecord = mockCitizens[selectedIndex];
+      const subject = citizenRecord.subject;
+      const ltoSignature = citizenRecord.ltoSignature; 
+      const mockSecretObj = mockSecrets[selectedIndex] || mockSecrets[0];
+      const secret = mockSecretObj.secret;
+      const fullName = `${subject.firstName} ${subject.lastName}`;
+
+      // --- 2. BARRETENBERG HASHING ---
+      bb = await Barretenberg.new();
+
+      const privateData = await computePrivateLicenseData(bb, subject.licenseID, subject.firstName, subject.lastName, subject.dateOfBirth, subject.licenseType, subject.expirationDate, subject.restrictions, subject.conditions, subject.bloodType, subject.address, ltoSignature);
+      const leafHash = await createFinalMerkleLeaf(bb, secret, privateData, fullName);
+
+      // --- 4. LOCAL STORAGE SAVE ---
+      localStorage.setItem("citizen_license", JSON.stringify({
+        secret: secret,
+        leafHash: leafHash,
+        publicName: fullName, 
+        public_name: stringToFieldHex(fullName), 
+        private_license_data: privateData, 
+        subject: subject,
+        merkle_path: null,
+        leaf_index: null,
+        public_merkle_root: null,
+      }));
+
+      setResult({ leafHash, subject });
+      setTimeout(() => setStep("done"), 300);
+      
+    } catch (err: unknown) {
+      setError((err as Error).message || "Something went wrong.");
+      setStep("select");
+    } finally {
+      // THIS SAVES YOUR LAPTOP FROM CRASHING
+      if (bb) {
+        await bb.destroy();
+      }
+    }
+  };
+
+  /* ── Committing screen ── */
+  if (step === "committing") {
+    const pct = progress;
+    const circumference = 2 * Math.PI * 40;
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", gap: 28, padding: 24, position: "relative" }}>
+        <div className="grid-bg" />
+        <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 24, textAlign: "center" }} className="anim-fade-up">
+          <div style={{ position: "relative", width: 88, height: 88 }}>
+            <svg style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }} viewBox="0 0 88 88" fill="none">
+              <circle cx="44" cy="44" r="40" stroke="rgba(255,255,255,.06)" strokeWidth="4" />
+              <circle cx="44" cy="44" r="40" stroke="var(--orange)" strokeWidth="4" strokeLinecap="round"
+                strokeDasharray={`${pct * circumference / 100} ${circumference}`}
+                style={{ transition: "stroke-dasharray .1s" }} />
+            </svg>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{pct}%</div>
+          </div>
+          <div>
+            <p style={{ fontWeight: 700, fontSize: 16, color: "var(--text)", letterSpacing: ".04em", textTransform: "uppercase" }}>Generating your secret…</p>
+            <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 6, lineHeight: 1.6 }}>Creating your identity commitment.<br />Never leaves this device.</p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 }}>
+            {["Generating private secret", "Creating Merkle leaf hash", "Storing identity vault"].map((s, i) => (
+              <div key={s} style={{ display: "flex", alignItems: "center", gap: 10, opacity: pct > i * 33 ? 1 : .3, transition: "opacity .4s" }}>
+                <div className={`step-dot ${pct > i * 33 + 30 ? "step-done" : pct > i * 33 ? "step-active" : "step-idle"}`}>
+                  {pct > i * 33 + 30
+                    ? <svg width="12" height="12" fill="none" stroke="#4ade80" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    : <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--orange)" }} className="anim-pulse" />
+                  }
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)" }}>{s}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Done screen ── */
+  if (step === "done" && result) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, position: "relative" }}>
+        <div className="grid-bg" />
+        <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", gap: 20 }} className="anim-pop">
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(34,197,94,.1)", border: "1.5px solid rgba(34,197,94,.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="24" height="24" fill="none" stroke="#4ade80" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+            </div>
+            <div>
+              <h1 style={{ fontSize: 26, fontWeight: 700, color: "var(--text)", letterSpacing: "-.02em" }}>Wallet Created!</h1>
+              <p style={{ fontSize: 13, color: "var(--text2)", marginTop: 2 }}>
+                Registered as <strong style={{ color: "var(--text)" }}>{result.subject.firstName} {result.subject.lastName}</strong>.
+              </p>
+            </div>
+          </div>
+
+          <button className="btn-kk btn-orange" style={{ width: "100%" }} onClick={() => router.push("/wallet")}>
+            Open Wallet
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Select step ── */
+  const selected = selectedIndex !== null ? mockCitizens[selectedIndex].subject : null;
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative" }}>
+      <div className="grid-bg" />
+      <div style={{ position: "relative", zIndex: 1, flex: 1, display: "flex", flexDirection: "column", padding: "20px 20px 32px", maxWidth: 520, margin: "0 auto", width: "100%", gap: 0 }}>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 28 }}>
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 7, color: "var(--text3)", fontSize: 12, fontWeight: 600, textDecoration: "none", letterSpacing: ".04em" }}>
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" /></svg>
+            Back
+          </Link>
+          <KakuhoLogo size={32} />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }} className="anim-fade-up">
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text)", letterSpacing: "-.025em", lineHeight: 1.15 }}>Choose Identity</h1>
+            <p style={{ fontSize: 13, color: "var(--text2)", marginTop: 8, lineHeight: 1.6 }}>Select your pre-approved identity to generate your unique secret and create your personal wallet.</p>
+          </div>
+
+          {/* Citizen dropdown */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, position: "relative" }}>
+            <label className="kk-label">Identity Subject</label>
+
+            <div onClick={() => setDropdownOpen(o => !o)} style={{
+              display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
+              background: selectedIndex !== null ? "rgba(249,115,22,.07)" : "var(--bg2)",
+              border: `1.5px solid ${dropdownOpen ? "rgba(249,115,22,.45)" : selectedIndex !== null ? "rgba(249,115,22,.3)" : "var(--border)"}`,
+              borderRadius: 14, cursor: "pointer", transition: "all .18s",
+              boxShadow: selectedIndex !== null ? "0 0 20px rgba(249,115,22,.08)" : "none",
+            }}>
+              {selectedIndex !== null ? (
+                <>
+                  <div style={{ width: 42, height: 42, borderRadius: "50%", background: "var(--orange-lite)", border: "1.5px solid rgba(249,115,22,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "var(--orange)", flexShrink: 0 }}>
+                    {mockCitizens[selectedIndex].subject.firstName[0]}{mockCitizens[selectedIndex].subject.lastName[0]}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14 }}>{mockCitizens[selectedIndex].subject.firstName} {mockCitizens[selectedIndex].subject.lastName}</p>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)", marginTop: 1 }}>{mockCitizens[selectedIndex].subject.licenseID}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(255,255,255,.04)", border: "1.5px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <svg width="16" height="16" fill="none" stroke="var(--text3)" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                  </div>
+                  <p style={{ flex: 1, fontSize: 14, color: "var(--text3)" }}>Search for your identity...</p>
+                </>
+              )}
+              <svg style={{ flexShrink: 0, transition: "transform .2s", transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)", color: "var(--text3)" }} width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            </div>
+
+            {dropdownOpen && (
+              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 50, background: "var(--bg2)", border: "1.5px solid var(--border2)", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,.45)" }} className="anim-fade-up">
+                {mockCitizens.map((c, i) => (
+                  <div key={i} onClick={() => { setSelectedIndex(i); setDropdownOpen(false); }} style={{
+                    display: "flex", alignItems: "center", gap: 14, padding: "13px 16px",
+                    background: selectedIndex === i ? "rgba(249,115,22,.07)" : "transparent",
+                    borderBottom: i < mockCitizens.length - 1 ? "1px solid var(--border)" : "none",
+                    cursor: "pointer", transition: "background .15s",
+                  }}
+                  onMouseEnter={e => { if (selectedIndex !== i) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,.03)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = selectedIndex === i ? "rgba(249,115,22,.07)" : "transparent"; }}
+                  >
+                    <div style={{ width: 38, height: 38, borderRadius: "50%", background: selectedIndex === i ? "var(--orange-lite)" : "rgba(255,255,255,.06)", border: `1.5px solid ${selectedIndex === i ? "rgba(249,115,22,.3)" : "var(--border)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: selectedIndex === i ? "var(--orange)" : "var(--text3)", flexShrink: 0 }}>
+                      {c.subject.firstName[0]}{c.subject.lastName[0]}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14 }}>{c.subject.firstName} {c.subject.lastName}</p>
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)", marginTop: 1 }}>{c.subject.licenseID}</p>
+                    </div>
+                    {selectedIndex === i && <svg width="14" height="14" fill="none" stroke="var(--orange)" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Preview */}
+          {selected && (
+            <div className="kk-card" style={{ padding: 18, borderColor: "rgba(249,115,22,.15)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <span className="kk-label">Credential Preview</span>
+                <span className="badge-kk badge-orange">Identity Registry</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 16px" }}>
+                {([["License ID", selected.licenseID], ["Blood Type", selected.bloodType], ["Date of Birth", selected.dateOfBirth], ["Address", selected.address], ["License Type", selected.licenseType], ["Expires", selected.expirationDate]] as [string, string][]).map(([l, v]) => (
+                  <div key={l}>
+                    <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 3 }}>{l}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)", fontWeight: 500 }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {error && <div style={{ background: "rgba(239,68,68,.07)", border: "1.5px solid rgba(239,68,68,.2)", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#f87171", fontWeight: 600 }}>{error}</div>}
+
+          <button className="btn-kk btn-orange" style={{ width: "100%" }} disabled={selectedIndex === null} onClick={handleRegister}>
+            Set Up Secure Wallet
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/wallet/page.tsx">
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import jsQR from "jsqr";
+import { Html5Qrcode } from "html5-qrcode";
+import { QRCodeSVG } from "qrcode.react";
+import { fetchRoot, getContract, fetchAllLeaves, computeLeanIMTPath } from "@/utils/chain";
+
+/* ── Logo ── */
+const KakuhoLogo = ({ size = 34 }: { size?: number }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{
+      width: size, height: size, borderRadius: Math.round(size * .3),
+      background: "rgba(249,115,22,.12)", border: "1.5px solid rgba(249,115,22,.28)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <svg width={size * .55} height={size * .55} viewBox="0 0 24 24" fill="none">
+        <path d="M12 4L5 7V11C5 15.42 8 19.54 12 21C16 19.54 19 15.42 19 11V7L12 4Z" fill="#F97316" opacity=".9" />
+      </svg>
+    </div>
+    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".35em", color: "rgba(238,240,248,.35)", textTransform: "uppercase" }}>Kakuho</span>
+  </div>
+);
+
+/* ── Connections view ── */
+const ConnectionsView = () => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "0 0 80px" }} className="anim-fade-up">
+    <div>
+      <span className="kk-label" style={{ display: "block", marginBottom: 4 }}>System Scope</span>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.015em" }}>Institutional Partners</h2>
+    </div>
+
+    {/* Active partner */}
+    <div style={{ background: "var(--bg2)", border: "1.5px solid oklch(0.72 0.18 200/.18)", borderRadius: 18, padding: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ width: 52, height: 52, borderRadius: 16, background: "var(--orange-lite)", border: "1.5px solid rgba(249,115,22,.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <svg width="26" height="26" fill="var(--orange)" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" /></svg>
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, lineHeight: 1.4 }}>Land Transportation Office</p>
+          <p style={{ fontSize: 10, color: "var(--text3)", marginTop: 4, letterSpacing: ".08em", textTransform: "uppercase" }}>Identity Registry</p>
+        </div>
+        <span className="badge-kk badge-green">
+          <div style={{ width: 7, height: 7, borderRadius: "50%" }} className="dot-green anim-pulse" />
+          Live
+        </span>
+      </div>
+    </div>
+
+    <span className="kk-label">Coming Soon</span>
+    {[{ l: "Financial Institute", s: "Banking Verification" }, { l: "University System", s: "Academic Credentials" }].map(it => (
+      <div key={it.l} style={{ background: "rgba(255,255,255,.02)", border: "1.5px dashed var(--border)", borderRadius: 16, padding: 16, display: "flex", alignItems: "center", gap: 14, opacity: .4 }}>
+        <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(255,255,255,.03)", border: "1.5px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <svg width="22" height="22" fill="none" stroke="var(--text3)" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+        </div>
+        <div>
+          <p style={{ fontWeight: 700, color: "var(--text2)", fontSize: 14, fontStyle: "italic" }}>{it.l}</p>
+          <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 2, textTransform: "uppercase", letterSpacing: ".08em" }}>{it.s}</p>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+/* ── QR Scanner modal ── */
+const QRScannerModal = ({ onScan, onError, onClose }: { onScan: (d: string) => void; onError: (m: string) => void; onClose: () => void }) => {
+  const [isReady, setIsReady] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decoded) => { onScan(decoded); html5QrCode.stop().then(() => onClose()); },
+      () => {}
+    ).then(() => setIsReady(true)).catch(err => { 
+      console.warn("Camera access failed or denied. Showing fallback.", err);
+      // We don't automatically close so they can use the file fallback
+    });
+
+    return () => { if (html5QrCode.isScanning) html5QrCode.stop().catch(e => console.error(e)); };
+  }, [onScan, onError, onClose]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+        if (code) {
+          onScan(code.data);
+          onClose();
+        } else {
+          onError("Could not detect a valid QR code in the image.");
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(13,15,20,.98)", zIndex: 250, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(24px)" }} className="anim-fade-in">
+      <div style={{ width: "100%", maxWidth: 360, aspectRatio: "1", background: "black", borderRadius: 32, overflow: "hidden", position: "relative", border: "1.5px solid var(--border)" }}>
+        <div id="reader" style={{ width: "100%", height: "100%" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 224, height: 224, border: "1px solid rgba(249,115,22,.3)", borderRadius: 24, position: "relative" }}>
+            {(["tl", "tr", "bl", "br"] as const).map(c => (
+              <div key={c} style={{
+                position: "absolute", width: 24, height: 24,
+                ...(c === "tl" ? { top: -1, left: -1, borderTop: "2px solid var(--orange)", borderLeft: "2px solid var(--orange)", borderTopLeftRadius: 12 } : {}),
+                ...(c === "tr" ? { top: -1, right: -1, borderTop: "2px solid var(--orange)", borderRight: "2px solid var(--orange)", borderTopRightRadius: 12 } : {}),
+                ...(c === "bl" ? { bottom: -1, left: -1, borderBottom: "2px solid var(--orange)", borderLeft: "2px solid var(--orange)", borderBottomLeftRadius: 12 } : {}),
+                ...(c === "br" ? { bottom: -1, right: -1, borderBottom: "2px solid var(--orange)", borderRight: "2px solid var(--orange)", borderBottomRightRadius: 12 } : {}),
+              }} />
+            ))}
+            {isReady && <div className="scan-line" style={{ position: "absolute", insetInline: 0, height: 2, background: "linear-gradient(to right,transparent,var(--orange),transparent)", boxShadow: "0 0 12px rgba(249,115,22,.8)" }} />}
+          </div>
+        </div>
+        <button onClick={onClose} style={{ position: "absolute", top: 12, right: 12, width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer", zIndex: 20 }}>✕</button>
+      </div>
+      <div style={{ marginTop: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.05)", border: "1.5px solid var(--border)", padding: "10px 20px", borderRadius: 99 }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--orange)" }} className="anim-pulse" />
+          <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text2)", letterSpacing: ".3em", textTransform: "uppercase" }}>Scanning Kakuho Hash</span>
+        </div>
+        <div style={{ fontSize: 12, color: "var(--text3)", display: "flex", alignItems: "center", gap: 8 }}>
+          <span>Camera not working?</span>
+          <button onClick={() => fileInputRef.current?.click()} style={{ background: "none", border: "none", color: "var(--orange)", textDecoration: "underline", cursor: "pointer", fontWeight: 600 }}>Upload Image</button>
+          <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} style={{ display: "none" }} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ── Desktop sidebar ── */
+const DesktopSidebar = ({ active, setActive, citizen, onLogout, hasUnread, onNotif, notifOpen, notifications, onCloseNotif }: any) => (
+  <aside className="kk-sidebar" style={{ display: "none", position: "relative" }} id="kk-sidebar">
+    <div style={{ padding: "20px 18px", borderBottom: "1.5px solid var(--border)" }}>
+      <KakuhoLogo />
+    </div>
+
+    {citizen && (
+      <div style={{ padding: "16px 16px", borderBottom: "1.5px solid var(--border)" }}>
+        <div style={{ background: "rgba(249,115,22,.05)", border: "1.5px solid rgba(249,115,22,.12)", borderRadius: 14, padding: "12px 13px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--orange)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff", flexShrink: 0, boxShadow: "0 0 14px rgba(249,115,22,.25)" }}>
+              {(citizen.firstName?.[0] || "U")}{(citizen.lastName?.[0] || "N")}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{citizen.firstName} {citizen.lastName}</p>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{citizen.licenseId || citizen.licenseID}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <nav style={{ flex: 1, padding: "12px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
+      {[
+        { id: "home", label: "Home", icon: <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg> },
+        { id: "connections", label: "Connections", icon: <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" /></svg> },
+        { id: "prove", label: "ZK Prover", icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg> },
+        { id: "verifier", label: "Verifier", icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg> },
+        { id: "settings", label: "Settings", icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><circle cx="12" cy="12" r="3" /></svg> },
+     ].map((n) => (
+        <button 
+          key={n.id} 
+          onClick={() => setActive(n.id)} 
+          className={active === n.id ? "sidebar-item active" : "sidebar-item"}
+        >
+          {n.icon}
+          {n.label}
+        </button>
+      ))}
+    </nav>
+    <div style={{ padding: "10px 10px", borderTop: "1.5px solid var(--border)", display: "flex", flexDirection: "column", gap: 8 }}>
+      <button onClick={onNotif} style={{
+        width: "100%", padding: "9px 12px", borderRadius: 12,
+        background: notifOpen ? "var(--orange-lite)" : "rgba(255,255,255,.03)",
+        border: `1.5px solid ${notifOpen ? "rgba(249,115,22,.25)" : "var(--border)"}`,
+        display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+        color: notifOpen ? "var(--orange)" : "var(--text3)", transition: "all .18s", position: "relative",
+        fontFamily: "var(--font-sans)",
+      }}>
+        <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" /></svg>
+        <span style={{ fontSize: 12, fontWeight: 600 }}>Activity</span>
+        {hasUnread && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--green)", marginLeft: "auto", boxShadow: "0 0 6px var(--green)" }} />}
+      </button>
+
+      {notifOpen && (
+        <div style={{
+          position: "absolute", bottom: 112, left: 12, right: 12,
+          background: "rgba(19,22,30,.95)", backdropFilter: "blur(24px)",
+          border: "1.5px solid var(--border2)", borderRadius: 14, padding: 14,
+          zIndex: 100, boxShadow: "0 -8px 32px rgba(0,0,0,.4)",
+        }} className="anim-fade-in">
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+            <span className="kk-label">Activity Log</span>
+            <button onClick={onCloseNotif} style={{ background: "none", border: "none", color: "var(--orange)", fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: ".04em" }}>Close</button>
+          </div>
+          {notifications.map((n: any, i: number) => (
+            <div key={n.id} style={{ borderBottom: i < notifications.length - 1 ? "1px solid var(--border)" : "none", paddingBottom: i < notifications.length - 1 ? 8 : 0, marginBottom: i < notifications.length - 1 ? 8 : 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{n.title}</span>
+                <span style={{ fontSize: 10, color: "var(--text3)" }}>{n.time}</span>
+              </div>
+              <p style={{ fontSize: 11, color: "var(--text2)", marginTop: 2 }}>{n.desc}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button onClick={onLogout} className="btn-kk btn-red" style={{ width: "100%", fontSize: 11, padding: 10, letterSpacing: ".06em" }}>
+        <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+        Logout Session
+      </button>
+    </div>
+  </aside>
+);
+
+/* ── Credential card ── */
+const CredentialCard = ({ data, isAnchored, onAlert }: { data: any; isAnchored?: boolean; onAlert?: (type: "success" | "error", msg: string) => void }) => {
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [copiedLeaf, setCopiedLeaf] = useState(false);
+
+  const cardGradient = data.licenseType === "NON-PROFESSIONAL"
+    ? "linear-gradient(135deg,#1a237e 0%,#283593 45%,#1565c0 100%)"
+    : "linear-gradient(135deg,#fb923c 0%,#f97316 50%,#c2410c 100%)";
+
+  let displayLeaf = data.leafHash;
+  if (displayLeaf && !displayLeaf.startsWith("0x")) {
+    try {
+      displayLeaf = "0x" + BigInt(displayLeaf).toString(16);
+    } catch (e) {}
+  }
+
+  const handleCopyLeaf = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (displayLeaf) {
+      navigator.clipboard.writeText(displayLeaf);
+      setCopiedLeaf(true);
+      setTimeout(() => setCopiedLeaf(false), 2000);
+      if (onAlert) onAlert("success", "Leaf hash copied!");
+    }
+  };
+
+  return (
+    <div className="cred-perspective" style={{ width: "100%", maxWidth: "min(400px,100%)", height: 190, position: "relative", cursor: "pointer" }} onClick={() => setIsFlipped(!isFlipped)}>
+      <div className={`cred-inner${isFlipped ? " flipped" : ""}`}>
+        {/* Front */}
+        <div className="cred-face" style={{ background: cardGradient, boxShadow: "0 16px 48px rgba(0,0,0,.5),0 0 32px rgba(21,101,192,.2)", border: "1px solid rgba(255,255,255,.14)" }}>
+          <div className="holo" />
+          <div style={{ position: "absolute", right: -24, top: -24, width: 130, height: 130, borderRadius: "50%", border: "1px solid rgba(255,255,255,.06)" }} />
+          <div style={{ position: "absolute", right: 20, bottom: -10, width: 80, height: 80, borderRadius: "50%", border: "1px solid rgba(255,255,255,.04)" }} />
+          <div style={{ padding: "14px 16px", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <p style={{ fontSize: 7, fontWeight: 800, color: "rgba(255,255,255,.4)", letterSpacing: ".15em", textTransform: "uppercase", lineHeight: 1.3 }}>Republic of the Philippines</p>
+                <p style={{ fontSize: 9.5, fontWeight: 800, color: "white", letterSpacing: ".04em", textTransform: "uppercase", marginTop: 3, lineHeight: 1.2 }}>Land Transportation Office</p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: 8 }}>
+                <span className={`badge-kk ${isAnchored ? 'badge-green' : 'badge-orange'}`} style={{ fontSize: 7, padding: "3px 7px", whiteSpace: "nowrap" }}>
+                  <div style={{ width: 5, height: 5, borderRadius: "50%" }} className={`${isAnchored ? 'dot-green' : 'dot-orange'} anim-pulse`} />
+                  {isAnchored ? "Anchored On-Chain" : "Pending Anchor"}
+                </span>
+                <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="13" height="13" fill="white" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" opacity=".9" /></svg>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 8, fontWeight: 800, color: "rgba(255,255,255,.5)", letterSpacing: ".2em", textTransform: "uppercase", lineHeight: 1 }}>{data.licenseType || "NON-PROFESSIONAL"}</span>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "white", letterSpacing: "-.01em", lineHeight: 1.1 }}>
+                {data.firstName && data.lastName ? `${data.firstName} ${data.lastName}` : (data.publicName || "Verified Citizen")}
+              </h3>
+              <div style={{ display: "flex", gap: 16, marginTop: 2 }}>
+                <div><p style={{ fontSize: 6, fontWeight: 800, color: "rgba(255,255,255,.35)", letterSpacing: ".12em", textTransform: "uppercase" }}>Control ID</p><p style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: "rgba(255,255,255,.85)", fontWeight: 500 }}>{data.licenseId}</p></div>
+                <div><p style={{ fontSize: 6, fontWeight: 800, color: "rgba(255,255,255,.35)", letterSpacing: ".12em", textTransform: "uppercase" }}>Valid Through</p><p style={{ fontSize: 9, color: "rgba(255,255,255,.85)", fontWeight: 500 }}>{data.expirationDate}</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Back */}
+        <div className="cred-face cred-back" style={{ background: "#08091a", border: "1px solid rgba(255,255,255,.08)", boxShadow: "0 16px 48px rgba(0,0,0,.6)" }}>
+          <div style={{ padding: "12px 14px", height: "100%", display: "flex", flexDirection: "column", gap: 7, position: "relative", zIndex: 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,.05)", paddingBottom: 6 }}>
+              <span className="kk-label" style={{ fontSize: 8 }}>Credential Data</span>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)", boxShadow: "0 0 6px var(--green)" }} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px 10px", flex: 1 }}>
+              {([["Date of Birth", data.dateOfBirth], ["Blood Type", data.bloodType], ["Address", data.address], ["Restrictions", data.restrictions], ["Conditions", data.conditions]] as [string, string][]).map(([l, v]) => (
+                <div key={l} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ fontSize: 7, fontWeight: 800, color: "var(--text3)", letterSpacing: ".1em", textTransform: "uppercase" }}>{l}</span>
+                  <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--text2)", fontWeight: 500 }}>{v || "—"}</span>
+                </div>
+              ))}
+              
+              {/* Leaf Hash */}
+              <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 2, marginTop: 2 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 7, fontWeight: 800, color: "var(--text3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Leaf Hash</span>
+                  {displayLeaf && (
+                    <button 
+                      onClick={handleCopyLeaf}
+                      style={{ background: "rgba(249,115,22,.15)", border: "1px solid rgba(249,115,22,.3)", borderRadius: 4, color: "var(--orange)", fontSize: 7, fontWeight: 800, cursor: "pointer", padding: "2px 6px", letterSpacing: ".05em" }}
+                    >
+                      {copiedLeaf ? "COPIED" : "COPY"}
+                    </button>
+                  )}
+                </div>
+                <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: "var(--cyan)", fontWeight: 500, wordBreak: "break-all", lineHeight: 1.2 }}>
+                  {displayLeaf || "—"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ── Main wallet page ── */
+export default function WalletPage() {
+  const [citizen, setCitizen] = useState<any>(null);
+  const [wallets, setWallets] = useState<any[]>([]);
+  const [tab, setTab] = useState("home");
+  const [search, setSearch] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
+  const [isAnchored, setIsAnchored] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [alert, setAlert] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [showQRShare, setShowQRShare] = useState(false);
+  const [chainRoot, setChainRoot] = useState<string | null>(null);
+  const [rootSyncing, setRootSyncing] = useState(false);
+  const [merklePath, setMerklePath] = useState<string[] | null>(null);
+  const [merkleLeafIndex, setMerkleLeafIndex] = useState<number | null>(null);
+  const [merklePathRoot, setMerklePathRoot] = useState<string | null>(null);
+  const [merklePathSyncing, setMerklePathSyncing] = useState(false);
+  const [proofHistory, setProofHistory] = useState<{ ts: number }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const data = localStorage.getItem("citizen_license");
+    if (!data) { router.push("/register"); return; }
+    let user;
+    try {
+      user = JSON.parse(data);
+    } catch (e) {
+      localStorage.removeItem("citizen_license");
+      router.push("/register");
+      return;
+    }
+    const smartUser = {
+      firstName: user.subject?.firstName || user.firstName || (user.publicName?.split(" ")[0] || "Verified"),
+      lastName: user.subject?.lastName || user.lastName || (user.publicName?.split(" ")[1] || "Citizen"),
+      licenseId: user.subject?.licenseID || user.licenseId || `N01-26-${Math.floor(100000 + Math.random() * 900000)}`,
+      dateOfBirth: user.subject?.dateOfBirth || user.dateOfBirth || "N/A",
+      bloodType: user.subject?.bloodType || user.bloodType || "O+",
+      address: user.subject?.address || user.address || "N/A",
+      restrictions: user.subject?.restrictions || user.restrictions || "None",
+      conditions: user.subject?.conditions || user.conditions || "None",
+      licenseType: user.subject?.licenseType || user.licenseType || "Non-Professional",
+      expirationDate: user.subject?.expirationDate || user.expirationDate || "2036-04-21",
+      ...user,
+    };
+    setCitizen(smartUser);
+    setWallets([smartUser]);
+    const history = JSON.parse(localStorage.getItem("proof_history") || "[]");
+    setProofHistory(history);
+    if (user.merkle_path) {
+      setMerklePath(user.merkle_path);
+      setMerkleLeafIndex(user.leaf_index ?? null);
+      setMerklePathRoot(user.public_merkle_root ?? null);
+    }
+    setRootSyncing(true);
+    fetchRoot().then(root => setChainRoot(root || null)).finally(() => setRootSyncing(false));
+  }, [router]);
+
+  
+
+  useEffect(() => {
+    if (!citizen?.leafHash) return;
+    let active = true;
+
+    const fetchHistory = async () => {
+      try {
+        const contract = await getContract();
+        // Fetch historical LicenseIssued events for this citizen
+        const filter = contract.filters.LicenseIssued(null, BigInt(citizen.leafHash));
+        const events = await contract.queryFilter(filter, 0); // Query from block 0
+
+        const history = events.map(ev => {
+          const { timestamp } = (ev as any).args;
+          return {
+            id: `hist-${ev.transactionHash}`,
+            title: "Identity Anchored",
+            desc: "Your credential was secured on-chain.",
+            time: new Date(Number(timestamp) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+        });
+
+        if (active) {
+          if (history.length > 0) setIsAnchored(true);
+          setNotifications(prev => {
+            const existingIds = new Set(prev.map(n => n.id));
+            const newHistory = history.filter(n => !existingIds.has(n.id));
+            return [...newHistory, ...prev];
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch notification history:", e);
+      }
+    };
+
+    const listenToAnchors = async () => {
+      try {
+        const contract = await getContract();
+
+        // Listener for new issues
+        contract.on("LicenseIssued", (admin, leafCommitment, timestamp) => {
+          if (!active) return;
+          const hexCommitment = "0x" + BigInt(leafCommitment).toString(16).padStart(64, "0");
+          if (hexCommitment === citizen.leafHash) {
+            setNotifications(prev => [{
+              id: Date.now(),
+              title: "Identity Anchored",
+              desc: "Your credential was just secured on-chain.",
+              time: "Just now"
+            }, ...prev]);
+            setHasUnread(true);
+            setIsAnchored(true);
+            fetchRoot().then(root => { if (active) setChainRoot(root || null); });
+          }
+        });
+
+        
+
+      } catch (e) { console.error("Failed to set up event listener", e); }
+    };
+
+    fetchHistory();
+    listenToAnchors();
+
+    return () => {
+      active = false;
+      getContract().then(c => {
+        c.removeAllListeners("LicenseIssued");
+      }).catch(() => { });
+    };
+  }, [citizen?.leafHash]);
+
+  const showAlert = (type: "success" | "error", msg: string) => {
+    setAlert({ type, msg });
+    setTimeout(() => setAlert(null), 4000);
+  };
+
+  const handleNav = (id: string) => {
+    if (id === "prove") { router.push("/prove"); return; }
+    // if (id === "verifier") { router.push("/verifier"); return; }
+    setTab(id);
+  };
+
+  const handleOpenNotifications = () => { setShowNotifications(!showNotifications); if (!showNotifications) setHasUnread(false); };
+
+  const handleImportAttempt = async (raw: string) => {
+    if (!raw) return;
+    setIsImporting(true);
+    try {
+      if (raw.trim().startsWith("kakuho-wallet:")) {
+        const b64 = raw.trim().slice("kakuho-wallet:".length);
+        const json = decodeURIComponent(escape(atob(b64)));
+        const parsed = JSON.parse(json);
+        let leafHash = parsed.leafHash || parsed.leafCommitment;
+        if (!parsed.secret || !leafHash) throw new Error("Invalid wallet export data.");
+        
+        // Normalize to 0x hex if it's decimal
+        if (!leafHash.startsWith("0x")) {
+          leafHash = "0x" + BigInt(leafHash).toString(16).padStart(64, "0");
+        }
+        
+        const normalizedData = { ...parsed, leafHash };
+        localStorage.setItem("citizen_license", JSON.stringify(normalizedData));
+        showAlert("success", "Wallet imported!");
+        setTimeout(() => window.location.reload(), 1500);
+        return;
+      }
+      showAlert("error", "Hash lookup requires registry. Use wallet export QR instead.");
+    } catch (e: any) { showAlert("error", e.message || "Import failed."); }
+    setIsImporting(false);
+  };
+
+  const handleFileScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d"); if (!ctx) { setIsImporting(false); return; }
+        canvas.width = img.width; canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+        if (code) { handleImportAttempt(code.data); }
+        else { showAlert("error", "Import Failed!"); setIsImporting(false); }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+const handleSyncMerklePath = async () => {
+    if (!citizen?.leafHash) { showAlert("error", "No leaf hash found. Re-register first."); return; }
+    setMerklePathSyncing(true);
+    try {
+      const leaves = await fetchAllLeaves();
+      
+      // ADDED 'await' HERE! 
+      // Now it waits for Barretenberg to finish the Pedersen Hash math.
+      const result = await computeLeanIMTPath(citizen.leafHash, leaves);
+      
+      if (!result) { showAlert("error", "Leaf not found on chain. Not issued yet?"); setMerklePathSyncing(false); return; }
+      
+      setMerklePath(result.path);
+      setMerkleLeafIndex(result.leafIndex);
+      setMerklePathRoot(result.root);
+      
+      const stored = localStorage.getItem("citizen_license");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        localStorage.setItem("citizen_license", JSON.stringify({
+          ...parsed,
+          merkle_path: result.path,
+          leaf_index: result.leafIndex,
+          public_merkle_root: result.root,
+        }));
+      }
+      showAlert("success", "Merkle path synced from chain!");
+    } catch {
+      showAlert("error", "Failed to sync Merkle path.");
+    }
+    setMerklePathSyncing(false);
+  };
+  
+  const handleLogout = () => { localStorage.removeItem("citizen_license"); window.location.href = "/"; };
+
+  if (!citizen) return null;
+
+  const displayName = [citizen.firstName, citizen.lastName].filter(Boolean).join(" ") || citizen.publicName || "Verified Citizen";
+  const initials = (displayName.match(/\b\w/g) || ["V", "C"]).slice(0, 2).join("").toUpperCase();
+
+  const MobileNotifPanel = () => (
+    <div style={{ position: "fixed", top: 64, right: 12, width: 280, background: "rgba(19,22,30,.95)", backdropFilter: "blur(24px)", border: "1.5px solid var(--border2)", borderRadius: 16, padding: 16, zIndex: 200, boxShadow: "0 16px 48px rgba(0,0,0,.5)" }} className="anim-fade-in">
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+        <span className="kk-label">Activity Log</span>
+        <button onClick={() => setShowNotifications(false)} style={{ background: "none", border: "none", color: "var(--orange)", fontSize: 10, fontWeight: 700, cursor: "pointer", letterSpacing: ".04em" }}>Close</button>
+      </div>
+      {notifications.map((n, i) => (
+        <div key={n.id} style={{ borderBottom: i < notifications.length - 1 ? "1px solid var(--border)" : "none", paddingBottom: i < notifications.length - 1 ? 10 : 0, marginBottom: i < notifications.length - 1 ? 10 : 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{n.title}</span><span style={{ fontSize: 10, color: "var(--text3)" }}>{n.time}</span></div>
+          <p style={{ fontSize: 11, color: "var(--text2)", marginTop: 3 }}>{n.desc}</p>
+        </div>
+      ))}
+    </div>
+  );
+
+  const QRShareModal = () => (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(13,15,20,.96)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(24px)" }} className="anim-fade-in">
+      <div style={{ background: "var(--bg2)", border: "1.5px solid var(--border2)", borderRadius: 24, padding: 28, maxWidth: 360, width: "100%", display: "flex", flexDirection: "column", gap: 20, alignItems: "center" }} className="anim-pop">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+          <div><h3 style={{ fontSize: 17, fontWeight: 700, color: "var(--text)", letterSpacing: "-.01em" }}>Share Identity</h3><p style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>Scan to verify your identity</p></div>
+          <button onClick={() => setShowQRShare(false)} style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(255,255,255,.05)", border: "1.5px solid var(--border)", color: "var(--text3)", cursor: "pointer" }}>✕</button>
+        </div>
+        <div style={{ background: "white", padding: 16, borderRadius: 16 }}>
+          <QRCodeSVG 
+            value={citizen.leafHash?.startsWith("0x") ? citizen.leafHash : (citizen.leafHash ? "0x" + BigInt(citizen.leafHash).toString(16).padStart(64, "0") : "no-hash")} 
+            size={200} bgColor="#ffffff" fgColor="#0d0f14" level="M" 
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const WalletExportQR = () => {
+    const [show, setShow] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const leafHex = citizen.leafHash?.startsWith("0x") ? citizen.leafHash : ("0x" + BigInt(citizen.leafHash || 0).toString(16).padStart(64, "0"));
+    const exportPayload = `kakuho-wallet:${btoa(unescape(encodeURIComponent(JSON.stringify({ 
+      secret: citizen.secret, 
+      leafHash: leafHex, 
+      leafCommitment: leafHex, 
+      publicName: citizen.publicName, 
+      public_name: citizen.public_name, 
+      private_license_data: citizen.private_license_data, 
+      subject: citizen.subject 
+    }))))}`;
+
+    const handleCopyPayload = () => {
+      const proofData = localStorage.getItem("pending_proof");
+      let proofPayload = {
+        type: "ZK_VERIFICATION",
+        proof: "",
+        publicInputs: [] as string[]
+      };
+
+      if (proofData) {
+        try {
+          const parsed = JSON.parse(proofData);
+          proofPayload.proof = parsed.proof || "";
+          proofPayload.publicInputs = parsed.publicInputs || [];
+        } catch (e) {
+          console.warn("Could not parse pending_proof from localStorage.");
+        }
+      }
+
+      navigator.clipboard.writeText(JSON.stringify(proofPayload, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {!show ? <button onClick={() => setShow(true)} className="btn-kk btn-ghost" style={{ width: "100%", fontSize: 12 }}>Show Export QR</button> :
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <div style={{ background: "white", padding: 14, borderRadius: 14 }}><QRCodeSVG value={exportPayload} size={260} bgColor="#ffffff" fgColor="#0d0f14" level="M" /></div>
+            <button onClick={() => setShow(false)} className="btn-kk btn-ghost" style={{ width: "100%", fontSize: 11 }}>Hide</button>
+            <div className="kk-card" style={{ padding: 20, marginTop: 20 }}>
+              <button 
+                onClick={handleCopyPayload} 
+                className={`btn-kk ${copied ? "btn-green" : "btn-orange"}`} 
+                style={{ width: "100%" }}
+              >
+                {copied ? "✓ Copied to Clipboard!" : "COPY EXPORT PAYLOAD"}
+              </button>
+              <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 10, textAlign: "center" }}>
+                Copy this proof payload to send to the Verifier.
+              </p>
+            </div>
+            {/* 👆 END OF UI 👆 */}
+          </div>
+        }
+      </div>
+    );
+  };
+
+  const SettingsPanel = () => {
+    const [showPath, setShowPath] = useState(false);
+    const pathMatchesChain = merklePathRoot && chainRoot && merklePathRoot === chainRoot;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "0 0 80px" }} className="anim-fade-up">
+        <div><span className="kk-label">Account</span><h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)" }}>Settings</h2></div>
+        <div className="kk-card" style={{ padding: 18, display: "flex", gap: 12 }}>
+          <button onClick={() => setShowQRShare(true)} className="btn-kk btn-ghost" style={{ flex: 1, fontSize: 12 }}><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" /></svg> Share</button>
+          <button onClick={() => setShowScanner(true)} className="btn-kk btn-ghost" style={{ flex: 1, fontSize: 12 }}><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 3h5v5H3zM3 16h5v5H3zM16 3h5v5h-5z" /></svg> Scan</button>
+        </div>
+        <div className="kk-card" style={{ padding: 18 }}>
+          <span className="kk-label">Identity</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text3)" }}>Name</span><span style={{ fontSize: 12, fontWeight: 700 }}>{citizen.firstName} {citizen.lastName}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, color: "var(--text3)" }}>Chain Root</span><span style={{ fontSize: 10, color: "var(--cyan)", fontFamily: "var(--font-mono)", wordBreak: "break-all", textAlign: "right", maxWidth: "60%" }}>{chainRoot || "Syncing…"}</span></div>
+          </div>
+        </div>
+
+        {/* Merkle Path */}
+        <div className="kk-card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <span className="kk-label">Merkle Inclusion Path</span>
+              {merklePath && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: pathMatchesChain ? "var(--green)" : "rgba(239,68,68,.7)", flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, color: pathMatchesChain ? "var(--green)" : "rgba(239,68,68,.7)", fontWeight: 700 }}>
+                    {pathMatchesChain ? "Matches admin root" : "Root mismatch — resync needed"}
+                  </span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleSyncMerklePath}
+              disabled={merklePathSyncing}
+              className="btn-kk btn-ghost"
+              style={{ fontSize: 11, padding: "6px 12px", flexShrink: 0 }}
+            >
+              {merklePathSyncing ? (
+                <><span className="anim-spin" style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,.2)", borderTopColor: "white", borderRadius: "50%" }} /> Syncing…</>
+              ) : (
+                <><svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Sync</>
+              )}
+            </button>
+          </div>
+
+          {merklePath ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", gap: 16 }}>
+                <div><span style={{ fontSize: 10, color: "var(--text3)", fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>Leaf Index</span><p style={{ fontSize: 12, fontFamily: "var(--font-mono)", color: "var(--text2)", marginTop: 2 }}>{merkleLeafIndex ?? "—"}</p></div>
+                <div style={{ flex: 1, minWidth: 0 }}><span style={{ fontSize: 10, color: "var(--text3)", fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>Path Root</span><p style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--cyan)", marginTop: 2, wordBreak: "break-all" }}>{merklePathRoot}</p></div>
+              </div>
+              <button onClick={() => setShowPath(p => !p)} style={{ background: "none", border: "none", color: "var(--orange)", fontSize: 11, fontWeight: 700, cursor: "pointer", textAlign: "left", padding: 0, letterSpacing: ".04em" }}>
+                {showPath ? "Hide path nodes ↑" : `Show ${merklePath.length} path nodes ↓`}
+              </button>
+              {showPath && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 200, overflowY: "auto", background: "rgba(0,0,0,.2)", borderRadius: 10, padding: "10px 12px" }}>
+                  {merklePath.map((node, i) => (
+                    <div key={i} style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                      <span style={{ fontSize: 9, color: "var(--text3)", fontFamily: "var(--font-mono)", width: 18, flexShrink: 0 }}>[{i}]</span>
+                      <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: "var(--text2)", wordBreak: "break-all" }}>{node}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 0" }}>
+              <svg width="13" height="13" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <span style={{ fontSize: 11, color: "var(--text3)" }}>No path yet. Click Sync to fetch from chain.</span>
+            </div>
+          )}
+        </div>
+
+        <div className="kk-card" style={{ padding: 18 }}><span className="kk-label">Data</span><WalletExportQR /></div>
+        <button onClick={handleLogout} className="btn-kk btn-red" style={{ width: "100%" }}>Logout Session</button>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ height: "100vh", display: "flex", background: "var(--bg)", position: "relative", overflow: "hidden" }}>
+      <div className="grid-bg" />
+      <DesktopSidebar active={tab} setActive={handleNav} citizen={citizen} onLogout={handleLogout} hasUnread={hasUnread} onNotif={handleOpenNotifications} notifOpen={showNotifications} notifications={notifications} onCloseNotif={() => setShowNotifications(false)} />
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", zIndex: 1, height: "100vh", overflow: "hidden" }}>
+        <header className="mobile-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", background: "rgba(13,15,20,.9)", backdropFilter: "blur(20px)", borderBottom: "1.5px solid var(--border)", position: "sticky", top: 0, zIndex: 40 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}><div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--orange)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#fff" }}>{initials}</div><p style={{ fontWeight: 700, fontSize: 14 }}>{citizen.firstName} {citizen.lastName}</p></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={handleOpenNotifications} style={{ width: 36, height: 36, borderRadius: 11, background: "rgba(255,255,255,.04)", border: "1.5px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" /></svg></button>
+            <button onClick={() => setTab("settings")} style={{ width: 36, height: 36, borderRadius: 11, background: "rgba(255,255,255,.04)", border: "1.5px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><circle cx="12" cy="12" r="3" /></svg></button>
+            {showNotifications && <MobileNotifPanel />}
+          </div>
+        </header>
+        {alert && <div className="kk-toast">{alert.msg}</div>}
+        {showScanner && <QRScannerModal onScan={handleImportAttempt} onError={msg => showAlert("error", msg)} onClose={() => setShowScanner(false)} />}
+        {showQRShare && <QRShareModal />}
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 32px 100px" }}>
+          {tab === "home" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }} className="anim-fade-up">
+              <h3 style={{ fontSize: 14, fontWeight: 700 }}>My Credentials</h3>
+              <CredentialCard data={citizen} isAnchored={isAnchored} onAlert={showAlert} />
+            </div>
+          )}
+          {tab === "connections" && <ConnectionsView />}
+          {tab === "settings" && <SettingsPanel />}
+        </div>
+      </main>
+      <nav className="bottom-nav">
+        {[
+          { id: "home", label: "Home", icon: <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg> },
+          { id: "prove", label: "Prove", icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" /></svg> },
+         /* { id: "verifier", label: "Verify", icon: <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg> }, 
+         */
+          { id: "connections", label: "Partners", icon: <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" /></svg> }
+        ].map(n => (
+          <button key={n.id} onClick={() => handleNav(n.id)} className={`nav-item${tab === n.id ? " active" : ""}`}>{n.icon}<span>{n.label}</span></button>
+        ))}
+      </nav>
+      <style>{`@media(min-width:768px){ #kk-sidebar { display:flex !important; } .bottom-nav { display:none !important; } .mobile-header { display:none !important; } }`}</style>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/globals.css">
+@import "tailwindcss";
+
+@theme {
+  --color-orange-primary: #F97316;
+  --color-background: #0d0f14;
+  --color-foreground: #eef0f8;
+  --font-sans: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1d27;
+    --bg4: #20243a;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --orange: #F97316;
+    --orange-lite: rgba(249,115,22,0.15);
+    --orange-glow: rgba(249,115,22,0.25);
+    --cyan: oklch(0.72 0.18 200);
+    --cyan-lite: oklch(0.72 0.18 200/0.12);
+    --green: #22c55e;
+    --red: #ef4444;
+    --text: #eef0f8;
+    --text2: rgba(238,240,248,0.55);
+    --text3: rgba(238,240,248,0.28);
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+}
+
+@layer components {
+  /* Hero layout */
+  .hero-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+    justify-content: center;
+    padding: 20px 24px 32px;
+    flex: 1;
+  }
+  .hero-visual {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+  }
+  @media (min-width: 768px) {
+    .hero-layout { flex-direction: row; align-items: center; }
+    .hero-visual { display: flex; }
+  }
+
+  /* Grid background */
+  .grid-bg {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+  .grid-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 0%, oklch(0.72 0.18 200 / 0.07) 0%, transparent 65%),
+      radial-gradient(ellipse 50% 40% at 85% 85%, rgba(249,115,22,.05) 0%, transparent 60%);
+  }
+
+  /* Cards */
+  .kk-card {
+    background: var(--bg2);
+    border: 1.5px solid var(--border);
+    border-radius: 24px;
+  }
+  .kk-card-sm {
+    background: var(--bg2);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+  }
+
+  /* Input */
+  .kk-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 16px;
+    font-size: 14px;
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .kk-input::placeholder { color: var(--text3); }
+  .kk-input:focus {
+    border-color: rgba(249,115,22,.5);
+    box-shadow: 0 0 0 3px rgba(249,115,22,.08);
+  }
+
+  /* Action buttons (wallet home row) */
+  .action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .action-btn-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: var(--bg3);
+    border: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .18s;
+    color: var(--text);
+  }
+  .action-btn:hover .action-btn-icon {
+    background: var(--bg4);
+    border-color: var(--border2);
+    color: #fff;
+  }
+  .action-btn span {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text2);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  /* Buttons */
+  .btn-kk {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 28px;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: .06em;
+    cursor: pointer;
+    transition: all .18s;
+    text-transform: uppercase;
+  }
+  .btn-orange {
+    background: var(--orange);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(249,115,22,.3);
+  }
+  .btn-orange:hover { background: #fb8c3a; box-shadow: 0 4px 28px rgba(249,115,22,.45); transform: translateY(-1px); }
+  .btn-orange:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+  .btn-ghost {
+    background: var(--bg3);
+    border: 1.5px solid var(--border);
+    color: var(--text2);
+  }
+  .btn-ghost:hover { background: var(--bg4); border-color: var(--border2); color: var(--text); }
+  .btn-red {
+    background: rgba(239,68,68,.1);
+    border: 1.5px solid rgba(239,68,68,.2);
+    color: #f87171;
+  }
+  .btn-red:hover { background: rgba(239,68,68,.18); }
+  .btn-cyan {
+    background: var(--cyan-lite);
+    border: 1.5px solid oklch(0.72 0.18 200 / .3);
+    color: var(--cyan);
+  }
+  .btn-cyan:hover { background: oklch(0.72 0.18 200 / .2); box-shadow: 0 0 20px oklch(0.72 0.18 200 / .15); }
+
+  /* Badges */
+  .badge-kk {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .badge-green { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2); color: #4ade80; }
+  .badge-orange { background: var(--orange-lite); border: 1px solid rgba(249,115,22,.25); color: #fb923c; }
+  .badge-cyan { background: var(--cyan-lite); border: 1px solid oklch(0.72 0.18 200/.25); color: var(--cyan); }
+  .badge-red { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.2); color: #f87171; }
+
+  /* Dot */
+  .dot-green { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+  .dot-orange { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+
+  /* Label */
+  .kk-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  /* Credential card flip */
+  .cred-perspective { perspective: 1100px; }
+  .cred-inner {
+    transition: transform .65s cubic-bezier(.4,0,.2,1);
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+  .cred-inner.flipped { transform: rotateY(180deg); }
+  .cred-face {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    overflow: hidden;
+    will-change: transform;
+  }
+  .cred-back { transform: rotateY(180deg) translateZ(1px); -webkit-transform: rotateY(180deg) translateZ(1px); }
+  .holo {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.06) 50%, transparent 70%);
+    background-size: 600px 100%;
+    animation: shimmer 4s ease-in-out infinite;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: fixed;
+    bottom: 24px;
+    left: 20px;
+    right: 20px;
+    background: rgba(26, 26, 26, 0.7);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: 24px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 12px 16px;
+    z-index: 100;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    border: 1.5px solid rgba(255,255,255,0.08);
+  }
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: #8E8E93;
+    cursor: pointer;
+    transition: all .2s;
+    flex: 1;
+    padding: 6px 0;
+  }
+  .nav-item.active { color: var(--orange); }
+  .nav-item span { font-size: 11px; font-weight: 500; letter-spacing: .02em; font-family: var(--font-sans); text-transform: capitalize; }
+
+  /* Sidebar */
+  .kk-sidebar {
+    width: 240px;
+    background: var(--bg2);
+    border-right: 1.5px solid var(--border);
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text2);
+    transition: all .18s;
+    width: 100%;
+    background: none;
+    text-align: left;
+  }
+  .sidebar-item:hover { background: rgba(255,255,255,.04); color: var(--text); }
+  .sidebar-item.active { background: var(--orange-lite); border-color: rgba(249,115,22,.25); color: var(--orange); }
+
+  /* Toast */
+  .kk-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 500;
+    animation: fadeUp .3s ease both;
+  }
+
+  /* Step dot */
+  .step-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all .35s;
+  }
+  .step-done { background: rgba(34,197,94,.15); border: 1.5px solid rgba(34,197,94,.3); }
+  .step-active { background: var(--orange-lite); border: 1.5px solid rgba(249,115,22,.35); }
+  .step-idle { background: rgba(255,255,255,.04); border: 1.5px solid var(--border); }
+}
+
+/* Animations */
+@keyframes fadeUp { from { opacity:0; transform:translateY(14px) } to { opacity:1; transform:translateY(0) } }
+@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.35 } }
+@keyframes spin { to { transform:rotate(360deg) } }
+@keyframes shimmer { 0% { background-position:-600px 0 } 100% { background-position:600px 0 } }
+@keyframes popIn { 0% { opacity:0; transform:scale(.92) } 100% { opacity:1; transform:scale(1) } }
+@keyframes scan { 0%,100% { top:0 } 50% { top:calc(100% - 2px) } }
+
+.anim-fade-up { animation: fadeUp .45s ease both; }
+.anim-fade-in { animation: fadeIn .3s ease both; }
+.anim-pop { animation: popIn .35s cubic-bezier(.34,1.56,.64,1) both; }
+.anim-spin { animation: spin 1s linear infinite; }
+.anim-pulse { animation: pulse 2s ease-in-out infinite; }
+.scan-line { position: absolute; animation: scan 2.5s ease-in-out infinite; }
+</file>
+
+<file path="src/app/layout.tsx">
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Kakuho Citizen Wallet - V3",
+  description: "ZK-powered identity wallet",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" className="dark">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+      </head>
+      <body className="min-h-screen flex flex-col">
+        {children}
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="src/app/page.tsx">
+"use client";
+
+import Link from "next/link";
+
+const KakuhoLogo = ({ size = 38 }: { size?: number }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{
+      width: size, height: size,
+      borderRadius: Math.round(size * .3),
+      background: "rgba(249,115,22,.12)",
+      border: "1.5px solid rgba(249,115,22,.28)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      boxShadow: "0 0 18px rgba(249,115,22,.12)",
+    }}>
+      <svg width={size * .55} height={size * .55} viewBox="0 0 24 24" fill="none">
+        <path d="M12 4L5 7V11C5 15.42 8 19.54 12 21C16 19.54 19 15.42 19 11V7L12 4Z" fill="#F97316" opacity=".9" />
+      </svg>
+    </div>
+    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".35em", color: "rgba(238,240,248,.35)", textTransform: "uppercase" }}>Kakuho</span>
+  </div>
+);
+
+const HeroVisual = () => (
+  <div style={{ position: "relative", width: 300, height: 300, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+    <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle,oklch(0.72 0.18 200/.12) 0%,rgba(249,115,22,.06) 50%,transparent 75%)", borderRadius: "50%" }} />
+
+    <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", animation: "spin 22s linear infinite" }} viewBox="0 0 300 300">
+      <circle cx="150" cy="150" r="130" fill="none" stroke="oklch(0.72 0.18 200)" strokeWidth="1" strokeOpacity=".18" strokeDasharray="8 14" />
+    </svg>
+    <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", animation: "spin 14s linear infinite reverse" }} viewBox="0 0 300 300">
+      <circle cx="150" cy="150" r="100" fill="none" stroke="rgba(249,115,22,.22)" strokeWidth="1" strokeDasharray="4 10" />
+    </svg>
+    <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", animation: "spin 30s linear infinite" }} viewBox="0 0 300 300">
+      <circle cx="150" cy="150" r="68" fill="none" stroke="oklch(0.72 0.18 200)" strokeWidth="1" strokeOpacity=".12" strokeDasharray="3 8" />
+    </svg>
+
+    {/* Center shield */}
+    <div style={{
+      width: 88, height: 88, borderRadius: 24,
+      background: "rgba(249,115,22,.12)",
+      border: "1.5px solid rgba(249,115,22,.3)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      boxShadow: "0 0 40px rgba(249,115,22,.2),0 0 80px oklch(0.72 0.18 200/.1)",
+      position: "relative", zIndex: 2,
+      backdropFilter: "blur(8px)",
+    }}>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+        <path d="M12 4L5 7V11C5 15.42 8 19.54 12 21C16 19.54 19 15.42 19 11V7L12 4Z" fill="#F97316" opacity=".9" />
+        <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+
+    {/* Floating labels */}
+    {(["0x3a7f…", "ZK–", "SHA256", "Merkle"] as const).map((t, i) => {
+      const positions = [
+        { top: "8%", left: "62%" }, { top: "72%", left: "62%" },
+        { top: "78%", left: "10%" }, { top: "12%", left: "8%" },
+      ];
+      return (
+        <div key={t} style={{
+          position: "absolute", ...positions[i],
+          fontSize: 10, fontFamily: "var(--font-mono)", fontWeight: 700,
+          color: i % 2 === 0 ? "oklch(0.72 0.18 200)" : "rgba(249,115,22,.7)",
+          opacity: .55, letterSpacing: ".04em",
+          animation: `pulse ${2 + i * .5}s ease-in-out infinite`,
+          animationDelay: `${i * .4}s`,
+        }}>{t}</div>
+      );
+    })}
+  </div>
+);
+
+export default function Home() {
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative" }}>
+      <div className="grid-bg" />
+
+      <div style={{ position: "relative", zIndex: 1, flex: 1, display: "flex", flexDirection: "column" }}>
+        {/* Nav */}
+        <nav style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px" }}>
+          <KakuhoLogo />
+        </nav>
+
+        {/* Hero — stable two-column via CSS class */}
+        <div className="hero-layout anim-fade-up">
+
+          {/* Left: text + CTAs */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 540 }}>
+            <div>
+              <h1 style={{
+                fontSize: "clamp(2.8rem,9vw,5rem)", fontWeight: 700,
+                lineHeight: .93, letterSpacing: "-.035em", color: "var(--text)",
+              }}>
+                Your Identity.<br />
+                <span style={{ color: "var(--orange)" }}>Your Proof.</span>
+              </h1>
+              <p style={{ fontSize: 15, color: "var(--text2)", lineHeight: 1.7, marginTop: 16, maxWidth: 400 }}>
+                A Zero-Knowledge digital credential anchored on-chain. Prove your identity instantly without revealing your private data.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Link href="/wallet" className="btn-kk btn-orange" style={{ width: "fit-content" }}>
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                </svg>
+                Open Wallet
+              </Link>
+            </div>
+          </div>
+
+          {/* Right: ZK visual — hidden on mobile, shown on desktop via CSS */}
+          <div className="hero-visual">
+            <HeroVisual />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/lib/commitment.ts">
+import { Barretenberg } from '@aztec/bb.js';
+
+// Convert a 0x-prefixed 32-byte field hex string to a Uint8Array.
+// bb.js 4.x poseidon2Hash({ inputs: Uint8Array[] }) requires raw bytes — Fr is not exported.
+export function fieldHexToBytes(hex: string): Uint8Array {
+  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+  const padded = clean.padStart(64, '0');
+  const bytes = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) {
+    bytes[i] = parseInt(padded.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+async function hashPair(bb: Barretenberg, left: string, right: string): Promise<string> {
+  // bb.js 4.x: poseidon2Hash takes { inputs: Uint8Array[] } and returns { hash: Uint8Array }
+  const { hash } = await bb.poseidon2Hash({
+    inputs: [fieldHexToBytes(left), fieldHexToBytes(right)],
+  });
+  return '0x' + Array.from(hash).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+
+export function getOrGenerateSecret(): string {
+  const existingSecret = localStorage.getItem('lto_secret');
+  if (existingSecret) return existingSecret;
+
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const newSecret = "0x" + Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+  localStorage.setItem('lto_secret', newSecret);
+  return newSecret;
+}
+
+// 2. Sequential Folding for the 11-Item Array
+export async function computePrivateLicenseData(
+  bb: Barretenberg, licenseID: string, firstName: string, lastName: string, dateOfBirth: string,
+  licenseType: string, expirationDate: string, restrictions: string, conditions: string,
+  bloodType: string, address: string, ltoSignature: string
+): Promise<string> {
+  const elements = [
+    stringToFieldHex(licenseID), stringToFieldHex(licenseType), stringToFieldHex(firstName),
+    stringToFieldHex(lastName), stringToFieldHex(dateOfBirth), stringToFieldHex(expirationDate),
+    stringToFieldHex(restrictions), stringToFieldHex(conditions), stringToFieldHex(bloodType),
+    stringToFieldHex(address), stringToFieldHex(ltoSignature)
+  ];
+  
+  // Start with the first element, and sequentially hash the next one into it
+  let currentHash = elements[0];
+  for (let i = 1; i < elements.length; i++) {
+    currentHash = await hashPair(bb, currentHash, elements[i]);
+  }
+  return currentHash;
+}
+
+// 3. Match the Noir Circuit Exactly!
+export async function createFinalMerkleLeaf(
+  bb: Barretenberg, secret: string, privateLicenseData: string, publicName: string
+): Promise<string> {
+  // Hash the first two, then hash the result with the third
+  const tempHash = await hashPair(bb, secret, privateLicenseData);
+  return await hashPair(bb, tempHash, stringToFieldHex(publicName));
+}
+
+export function toFieldHex(value: string | number | bigint): string {
+  if (typeof value === 'string' && value.startsWith('0x')) return '0x' + value.slice(2).padStart(64, '0');
+  if (typeof value === 'string') return '0x' + BigInt(value).toString(16).padStart(64, '0');
+  return '0x' + BigInt(value).toString(16).padStart(64, '0');
+}
+
+export function stringToFieldHex(text: string): string {
+  const bytes = new TextEncoder().encode(text).slice(0, 31);
+  let hex = '';
+  for (const b of bytes) hex += b.toString(16).padStart(2, '0');
+  return '0x' + hex.padStart(64, '0');
+}
+</file>
+
+<file path="src/lib/mockData.ts">
+export type CitizenSubject = {
+  licenseID: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  licenseType: string;
+  expirationDate: string;
+  restrictions: string;
+  conditions: string;
+  bloodType: string;
+  address: string;
+};
+
+export type MockCitizen = {
+  subject: CitizenSubject;
+  ltoSignature: string;
+};  
+
+const mockCitizens: MockCitizen[] = [
+  {
+    subject: { licenseID: "N01-26-835232", firstName: "Lorena", lastName: "Morales", dateOfBirth: "2004-04-25", licenseType: "Non-Professional", expirationDate: "2033-02-04", restrictions: "None", conditions: "None", bloodType: "O+", address: "260 Busa St., Brgy. Krus na Ligas, Valenzuela" },
+    ltoSignature: "0xab119927971a5af22622d2fd26945869df19686c1eecd55b5f9f55807836a5e7765c6a24ebe0c84a1836a7820dc28bef3f12dc31b",
+  },
+  {
+    subject: { licenseID: "N01-26-462076", firstName: "Enrique", lastName: "Solis", dateOfBirth: "1996-07-23", licenseType: "Non-Professional", expirationDate: "2036-08-19", restrictions: "None", conditions: "None", bloodType: "B-", address: "849 Del Pilar St., Brgy. Guadalupe Nuevo, Malabon" },
+    ltoSignature: "0x119394b4bdcbd33565889a5c8ecded0ff721ce1cad0d465c8b06771de4f004945e58862080ae54b40236b0ebfc988e0ced4eff8a1c28271044a201d0737709041c",
+  },
+  {
+    subject: { licenseID: "N01-26-540384", firstName: "Claudia", lastName: "Ortiz", dateOfBirth: "1984-09-04", licenseType: "Non-Professional", expirationDate: "2032-08-16", restrictions: "1", conditions: "None", bloodType: "B+", address: "354 Binhagan St, Brgy. Bel-Air, Malabon" },
+    ltoSignature: "0x0209047c737b8137fef9725bb755b20096245ba69dd2c33eb4f78661137c732c687a1a2febe1d3b870a72cd50c9e27d1fa2a7738689967c052b74d8cae14eeff1b",
+  },
+  {
+    subject: { licenseID: "N01-26-439637", firstName: "Emilio", lastName: "Villanueva", dateOfBirth: "2000-09-26", licenseType: "Non-Professional", expirationDate: "2035-07-24", restrictions: "1, 2", conditions: "None", bloodType: "AB+", address: "349 Sto Nino St., Brgy. Guadalupe Nuevo, Caloocan" },
+    ltoSignature: "0x7d046c11d86f05811f4dda9741e44176802b1685f895345c48b192462b033fff0728f1f2f5b7a5c72bd9108c9dc4f5ad5accb3bd275553df0b94919566e03b391b",
+  },
+  {
+    subject: { licenseID: "N01-26-223046", firstName: "Elena", lastName: "Morales", dateOfBirth: "1981-07-25", licenseType: "Non-Professional", expirationDate: "2033-01-05", restrictions: "None", conditions: "None", bloodType: "O-", address: "820 Silangan St., Brgy. Barrio San Jose, Makati" },
+    ltoSignature: "0x3dc947513d12bbb7c3506e544994322dce7409371b0b3c903108f4e4bfc6fda9356f50d48a83b1024738a0aedbfb082abaf9aab2d49658735e912007f3041cb81c",
+  },
+  {
+    subject: { licenseID: "N01-26-927688", firstName: "Fernando", lastName: "Estrada", dateOfBirth: "1998-01-10", licenseType: "Non-Professional", expirationDate: "2029-11-06", restrictions: "1, 2", conditions: "None", bloodType: "AB+", address: "935 Mauban St., Brgy. Tanyang, Quezon City" },
+    ltoSignature: "0xed169e2d45b2faa913ca6d6eacd5bed1d262a13d83af53689dcc2df136393d5f32f89daa652f94da1669843f4c6f3a7ca5205564aee35be385e6f09f597e67d11c",
+  },
+  {
+    subject: { licenseID: "N01-26-456629", firstName: "Sergio", lastName: "Campos", dateOfBirth: "1989-08-04", licenseType: "Non-Professional", expirationDate: "2032-04-06", restrictions: "1", conditions: "None", bloodType: "B+", address: "475 bantayan St., Brgy. San Lorenzo, Malabon" },
+    ltoSignature: "0x273e0729fee4f9bd24380ce87e2af6fb157c6e4db0a920d94ea11b6d43df6d1b64b3aca4f0fa1bc850c8a671412c737aee902dc12e2610ec3c1bc7a198f05fd61c",
+  },
+  {
+    subject: { licenseID: "N01-26-838362", firstName: "Armando", lastName: "Alvarez", dateOfBirth: "1974-06-10", licenseType: "Non-Professional", expirationDate: "2029-06-16", restrictions: "2", conditions: "None", bloodType: "O-", address: "451 Sto Nino St., Brgy. Pakanen, Parañaque" },
+    ltoSignature: "0xe55fe65edc2dc9916b48e2c33457431936b2791ae88824870cfd71637bb8a63a0663756d2f5700b7892eacd01c02490a2b153c251250e271a0b655702a23245d1c",
+  },
+  {
+    subject: { licenseID: "N01-26-458429", firstName: "Federico", lastName: "Garcia", dateOfBirth: "2001-11-02", licenseType: "Non-Professional", expirationDate: "2036-01-15", restrictions: "2", conditions: "None", bloodType: "B+", address: "980 Tagaytay St., Brgy. Kapitolyo, Manila" },
+    ltoSignature: "0xd79d4db41ba3dde6bce7827ccf49c7abf3c137a4eed7402eb7baa82508af8ae653106c89b4fb76d76293fd971e53cb9dfd0e9a4a2228bbb772b2991db8e676c01c",
+  },
+  {
+    subject: { licenseID: "N01-26-401034", firstName: "Isabella", lastName: "Reyes", dateOfBirth: "1975-04-02", licenseType: "Non-Professional", expirationDate: "2035-01-26", restrictions: "None", conditions: "None", bloodType: "AB+", address: "568 Lumban St., Brgy. Tanyang, Navotas" },
+    ltoSignature: "0xd46178a946d393e1b31f3e5c8cece4d4417af649bb00f46ac8bea622f0b1f90d03416d2d3284bf0fcfd136b7075153b84b76b5113f303570db0a963cad0a47921c",
+  },
+];
+
+export default mockCitizens;
+</file>
+
+<file path="src/lib/MockSecret.ts">
+export type MockSecret = {
+  secret: string;
+};
+
+const mockSecrets: MockSecret[] = [
+  { secret: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" },
+  { secret: "0x0987654321fedcba0987654321fedcba0987654321fedcba0987654321fedcba" }
+];
+export default mockSecrets;
+</file>
+
+<file path="src/lib/test-hash.ts">
+import { Barretenberg } from '@aztec/bb.js';
+import { toFieldHex } from './commitment';
+
+async function main() {
+    console.log("🚀 Booting up Aztec Barretenberg...");
+    const bb = await Barretenberg.new();
+
+    async function hashNode(leftStr: string, rightStr: string) {
+        // @ts-ignore: Beta types desync bypass
+        const response = await bb.poseidon2Hash({ inputs: [leftStr, rightStr] });
+        let hashResult: any = response;
+        if (typeof response === 'object' && response !== null && !(response instanceof Uint8Array)) {
+            hashResult = (response as any).output || (response as any).hash || Object.values(response)[0];
+        }
+        if (typeof hashResult === 'string') return hashResult.startsWith('0x') ? hashResult : `0x${hashResult}`;
+        return "0x" + Array.from(hashResult as unknown as Uint8Array).map((b: any) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    const name = toFieldHex("0x00000000000000000000000000000000000000456e726971756520536f6c6973");
+    const license = toFieldHex("0x0dcbcae3bbe16203a1f4315133e825effd3e1e220e3fc9ae179f7b5849f626aa");
+    const jsInnerHash = await hashNode(license, name);
+    console.log("JS hash_2 result:", jsInnerHash);
+}
+
+main().catch(console.error);
+</file>
+
+<file path="src/lib/test-root.ts">
+import { Barretenberg } from '@aztec/bb.js';
+import { toFieldHex } from './commitment';
+
+async function verifyGoldenRoot() {
+    console.log("🚀 Booting up Aztec Barretenberg...");
+    const bb = await Barretenberg.new();
+
+    async function hashNode(leftStr: string, rightStr: string) {
+        // @ts-ignore: Beta types desync bypass
+        const response = await bb.poseidon2Hash({ inputs: [leftStr, rightStr] });
+        let hashResult: any = response;
+        if (typeof response === 'object' && response !== null && !(response instanceof Uint8Array)) {
+            hashResult = (response as any).output || (response as any).hash || Object.values(response)[0];
+        }
+        if (typeof hashResult === 'string') return hashResult.startsWith('0x') ? hashResult : `0x${hashResult}`;
+        return "0x" + Array.from(hashResult as unknown as Uint8Array).map((b: any) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    // 1. The exact leaves extracted from your Next.js console logs
+    const lorenaLeafHex = "0x21bc90e5b47f11f172e79bfb3c3b65d2a1ca6999793ab846352f283442532c8b";
+    const enriqueLeafHex = "0x20843a0db3a6160d93e5d8f9f7ca5e4328ce82b90785251da4ed080a8eca616d";
+
+    console.log("🍃 Leaf 0 (Lorena):", lorenaLeafHex);
+    console.log("🍃 Leaf 1 (Enrique):", enriqueLeafHex);
+
+    // 2. Precompute the Empty Subtree Hashes
+    const DEPTH = 20;
+    const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    const zeroHashes: string[] = [toFieldHex(ZERO_HASH)];
+
+    for (let i = 0; i < DEPTH; i++) {
+        const prevZero = toFieldHex(zeroHashes[i]);
+        const nextZero = await hashNode(prevZero, prevZero);
+        zeroHashes.push(nextZero);
+    }
+
+    // 3. Hash Lorena and Enrique together to create the Level 1 Node
+    const left = toFieldHex(lorenaLeafHex);
+    const right = toFieldHex(enriqueLeafHex);
+    let currentNode = await hashNode(left, right);
+    
+    console.log("🌿 Level 1 Node (Lorena + Enrique):", currentNode);
+
+    // 4. Climb the remaining 19 levels of the tree
+    // Since there are no more real users, we hash our current node with the precomputed empty subtrees
+    for (let level = 1; level < DEPTH; level++) {
+        const currentHex = toFieldHex(currentNode);
+        const emptySiblingHex = toFieldHex(zeroHashes[level]);
+        
+        // The real users are on the left side of the tree, so the empty branches are always on the right
+        currentNode = await hashNode(currentHex, emptySiblingHex);
+    }
+
+    // 5. Format and verify the Final Root
+    const calculatedRoot = toFieldHex(currentNode);
+    const expectedGoldenRoot = "0x0bb86687610da898dd8c939cc18d9327d5c23b566faaaed615c2391e2e4c3eb2";
+
+    console.log("\n==========================================");
+    console.log("🎯 Calculated Root:", calculatedRoot);
+    console.log("🏆 Expected Root:  ", expectedGoldenRoot);
+    console.log("==========================================\n");
+
+    if (calculatedRoot === expectedGoldenRoot) {
+        console.log("✅ MATCH! Your Depth-20 Merkle math is mathematically perfect.");
+        console.log("👉 Next Step: Faye must generate this exact root on her backend and send it to the smart contract.");
+    } else {
+        console.log("❌ MISMATCH. The universe is broken.");
+    }
+}
+
+verifyGoldenRoot().catch(console.error);
+</file>
+
+<file path="src/utils/chain.ts">
+import { ethers } from "ethers"; 
+import { Barretenberg } from '@aztec/bb.js';
+import { toFieldHex, fieldHexToBytes } from '@/lib/commitment';
+
+const REGISTRY_ABI = [
+  "function getAllLeaves() public view returns (uint256[] memory)",
+  "function getRoot() public view returns (uint256)",
+  "function admin() public view returns (address)",
+  "event LicenseIssued(address indexed executor, uint256 indexed leafCommitment, uint256 newRoot, uint256 timestamp)"
+];
+
+const REGISTRY_ADDRESS = process.env.NEXT_PUBLIC_REGISTRY_ADDRESS!;
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL!;
+
+export async function getContract() {
+  const provider = new ethers.JsonRpcProvider(RPC_URL);
+  return new ethers.Contract(REGISTRY_ADDRESS, REGISTRY_ABI, provider);
+}
+
+export async function getContractWithSigner(privateKey: string) {
+  const provider = new ethers.JsonRpcProvider(RPC_URL);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  return new ethers.Contract(REGISTRY_ADDRESS, REGISTRY_ABI, wallet);
+}
+
+export async function fetchAllLeaves() {
+  try {
+    const contract = await getContract();
+    const leaves = await contract.getAllLeaves();
+    return leaves.map((l: any) => "0x" + BigInt(l).toString(16).padStart(64, '0'));
+  } catch (error) {
+    console.error("Failed to fetch leaves from chain:", error);
+    return [];
+  }
+}
+
+export async function fetchRoot(): Promise<string | null> {
+  try {
+    const contract = await getContract();
+    const root = await contract.getRoot();
+    return "0x" + BigInt(root).toString(16).padStart(64, '0');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Custom Asynchronous Standard Merkle Path Generator
+ * Computes the exact sibling path natively using Aztec's Pedersen Hash WASM engine.
+ * Guarantees 100% Hash Parity with the Noir Circuit's fixed depth-20 tree.
+ */
+export async function computeLeanIMTPath(leafHash: string, leavesHex: string[]) {
+  let leafIndex = leavesHex.indexOf(leafHash);
+  if (leafIndex === -1) return null;
+
+  const bb = await Barretenberg.new();
+
+  try {
+    async function hashNode(leftStr: string, rightStr: string) {
+        const lHex = leftStr.startsWith('0x') ? leftStr : `0x${leftStr}`;
+        const rHex = rightStr.startsWith('0x') ? rightStr : `0x${rightStr}`;
+
+        const { hash } = await bb.poseidon2Hash({
+            inputs: [fieldHexToBytes(lHex), fieldHexToBytes(rHex)]
+        });
+        return '0x' + Array.from(hash).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    let currentLevel = leavesHex.map(l => toFieldHex(l));
+    const path: string[] = [];
+    let currentIndex = leafIndex;
+
+    const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    const zeroHashes: string[] = [toFieldHex(ZERO_HASH)];
+
+    for (let i = 0; i < 20; i++) {
+      const prevZero = toFieldHex(zeroHashes[i]);
+      const nextZero = await hashNode(prevZero, prevZero);
+      zeroHashes.push(nextZero);
+    }
+
+    for (let level = 0; level < 20; level++) {
+      const nextLevel: string[] = [];
+      for (let i = 0; i < currentLevel.length; i += 2) {
+        const leftStr = currentLevel[i];
+        const rightStr = (i + 1 < currentLevel.length) ? currentLevel[i + 1] : zeroHashes[level];
+        const left = toFieldHex(leftStr);
+        const right = toFieldHex(rightStr);
+        const nodeHash = await hashNode(left, right);
+        nextLevel.push(nodeHash);
+        if (currentIndex === i || currentIndex === i + 1) {
+          const sibling = (currentIndex % 2 === 0) ? rightStr : leftStr;
+          path.push("0x" + BigInt(sibling).toString(16).padStart(64, "0"));
+        }
+      }
+      currentIndex = Math.floor(currentIndex / 2);
+      currentLevel = nextLevel;
+    }
+
+    const root = "0x" + BigInt(currentLevel[0]).toString(16).padStart(64, "0");
+
+    return { path: path, root: root, leafIndex: leafIndex };
+
+  } finally {
+    // PREVENTS MEMORY LEAKS WHEN SYNCING FROM BLOCKCHAIN
+    await bb.destroy();
+  }
+}
+</file>
+
+<file path="src/utils/crypto.ts">
+// AES-GCM encrypt/decrypt using browser Web Crypto API.
+// The password is used to derive a key via PBKDF2 — the raw password never touches localStorage.
+
+const PBKDF2_ITERATIONS = 100000;
+const SALT_BYTES = 16;
+const IV_BYTES = 12;
+
+async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
+  const enc = new TextEncoder();
+  const keyMaterial = await window.crypto.subtle.importKey(
+    "raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]
+  );
+  return window.crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+/** Encrypts a plaintext string with a password. Returns a base64 blob. */
+export async function encryptSecret(plaintext: string, password: string): Promise<string> {
+  const salt = window.crypto.getRandomValues(new Uint8Array(SALT_BYTES));
+  const iv = window.crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const key = await deriveKey(password, salt);
+  const enc = new TextEncoder();
+  const ciphertext = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    enc.encode(plaintext)
+  );
+  // Pack: salt (16) + iv (12) + ciphertext into one base64 string
+  const combined = new Uint8Array(SALT_BYTES + IV_BYTES + ciphertext.byteLength);
+  combined.set(salt, 0);
+  combined.set(iv, SALT_BYTES);
+  combined.set(new Uint8Array(ciphertext), SALT_BYTES + IV_BYTES);
+  return btoa(String.fromCharCode(...combined));
+}
+
+/** Decrypts a base64 blob with a password. Returns plaintext or throws on wrong password. */
+export async function decryptSecret(blob: string, password: string): Promise<string> {
+  const combined = Uint8Array.from(atob(blob), c => c.charCodeAt(0));
+  const salt = combined.slice(0, SALT_BYTES);
+  const iv = combined.slice(SALT_BYTES, SALT_BYTES + IV_BYTES);
+  const ciphertext = combined.slice(SALT_BYTES + IV_BYTES);
+  const key = await deriveKey(password, salt);
+  const plaintext = await window.crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    key,
+    ciphertext
+  );
+  return new TextDecoder().decode(plaintext);
+}
+</file>
+
+<file path="src/utils/hybrid_transparency.json">
+{"noir_version":"1.0.0-beta.21+89a0f0faf3a5f1273c8ac4843b7877882437e277","hash":"2855923544690248391","abi":{"parameters":[{"name":"secret","type":{"kind":"field"},"visibility":"private"},{"name":"private_license_data","type":{"kind":"field"},"visibility":"private"},{"name":"merkle_path","type":{"kind":"array","length":20,"type":{"kind":"field"}},"visibility":"private"},{"name":"leaf_index","type":{"kind":"integer","sign":"unsigned","width":32},"visibility":"private"},{"name":"public_name","type":{"kind":"field"},"visibility":"public"},{"name":"public_merkle_root","type":{"kind":"field"},"visibility":"public"}],"return_type":null,"error_types":{}},"bytecode":"H4sIAAAAAAAA/82ba3RUZxWG5yTcIRdCwq0hF6AFmju00OZGSEiAQIAWsQUCNCVTGJLMhGQCJKXVqcqltJpMAgRaFSWXAq2gQAqoqEBKq/uoQEqrogIpbRU1kEJVVOIpON9k0hPznrPOXmv4tVd7Zu/N9+y+z6/6Oqt21BXlWaymi9IIx8H0wrwVBem29Vll1hUZeYWFjvrHp82dkel0ND5hsVvNpaVDIxz7ppWWmkvsi80lturKKufpiPj8uSWXE3ZPODo/s8nheHLp+Ekfzyw/VlyVcflW9XWTyTTidIRJ/Y+vq1CZfHi+rdRsybdZJ843lxSV2fPsFpvVWSM2MYlKEtUwUY2oGXlf6CjH/vQSS2GhZeVnHWtMTkfDAot1ZaH53t6m//9HGtrjJyZ3w8oeP/a5O76ouNAc5irCkd9JAJawcOCjcMmTXTXyBj3wbevo6AgDbiAceEsPWFKVNljAgCrXs0dgz975saqqgRUikEUje34s7ZMjK4H31fwf7miOpmO6beojmmpPg5Gi8hHVaFGNqRl7/wPjdLT1URnQue34CQ9GeWnIRLuKGKNCJhoJmRimkIkGTitGa8hohRXNBSvWVcQZBSsWgRWnA1Y0ACsWgBXHbYQ4DUaI5zFCXDyyaAKDEeIStBrBCXSNHFvd866R453AX3o8cCITgb+C9kyfKCpf1Uyf9NDDk3W09VUZ0LntlEceTfTS9ElyFclGpU8Skj7JTOmTBJxWMrcqkrhgpbiKVKNgpSCwUnXASgJgpQCwUrlVkapBFVN5VJE6FVk0jUEVqWkcqkiYBKgiYQqiiinAiUxjUcU0UfVSzfT0jOmZOtr2UhnQuW3WjJmzvDR9sl3FbKPSJxtJn9lM6ZMNnNZsblVkc8Ga4ypyjII1B4GVowNWNgBrDgArh1sVORpUMZdHFTlzkUXnMagiZx6HKtLSAVWkZSGqyAJOZD6LKuaLqrdqpj/2+IIv6GjbW2VA57YLv/jEk16aPotcxWKj0mcRkj6LmdJnEXBai7lVsYgL1hJXkWsUrCUIrFwdsBYBsJYAsHK5VZGrQRVLeVSRuxRZdBmDKnKXcahi3mOAKuYtRFSxEDiR5SyqWC6qPqqZ/lTe0yt0tO2jMqBz23zzMyu9NH1WuQqLUemzCkkfC1P6rAJOy8KtilVcsFa7igKjYK1GYBXogLUKgLUagFXArYoCDaoo5FFFQSGyaBGDKgqKOFSx7ClAFcvyEVXkAydiZVGFVVR9VTPdVrymREfbvioDOrcttZet9dL0Wecq1huVPuuQ9FnPlD7rgNNaz62KdVywyl1FhVGwyhFYFTpgrQNglQOwKrhVUaFBFc/yqKLiWWTRDQyqqNjAoYoiG6CKolJEFaXAiTzHoornRNVPNdOf/xJ9mRw6GvdTGdG5Mb1AX6Gv0te8NINoo6g2GZVCtBGJIdrElEO0Ebgy2sStDdrIxmyzqLYYxmwzxGyLDmY98rgLbTMCbQu3PpAJwh/0Io9AaAu9CC27lcEhyvCtHBbZ8DxgkQ30AqIR5SvgWF5iEQm9JMr+6oH/Mn2dvkGVOnr3V5vi0buKnFRNNV6bTNtEtd2wZNoGJdN2tmTahhzbdnadbGODtkNUtYZB2wFBq9UDbRsCbQcCrZZdJ7VadLKTSSe1tBNadheHTmppF4dOaCu9DAhF+awKMgry/2bQKzxGeUWUA9RT/1X6Jn2Lvq2j9wC1KR69d9N36Lu0x2vDqU5U9YaFUx0UTvVs4VSHHFs9u1Hq2KA1iKrRMGgNELRGPdDqEGgNCLRGdqM0ajHKa0xGaaTXoGX3chilkfayGGUXvYoYZRfthoyyG7mXfTxG2SfKgeqpv59epzfoezp6D1Sb4tH7AB2k79MPvDacDonqsGHhdAgKp8Ns4XQIObbD7EY5xAbtiKiaDIN2BILWpAfaIQTaEQRaE7tRmrQY5U0mozTRm9CyRzmM0kRHWYyyl/YjRtlLByCjHEDu5RiPUY6JcpB66h+nH9KP6Mc6eg9Sm+LR+wT9hH5KP/PacDopqlOGhdNJKJxOsYXTSeTYTrEb5SQbtNOiajYM2mkIWrMeaCcRaKcRaM3sRmnWYpS3mIzSTG9By57hMEoznWExylE6jhjlKJ2AjHICuZe3eYzytij91FP/Hfo5/YJIR28/tSkevWX6Jf2Kfu214XRWVOcMC6ezUDidYwuns8ixnWM3ylk2aOdF1WIYtPMQtBY90M4i0M4j0FrYjdKixSjvMhmlhd6Flr3AYZQWusBilDP0DmKUMyRDRpGRe3mPxyjvidJfPfXfp9/Qb+l3Onr7q03x6H2Rfk9/oD96bThdEtVlw8LpEhROl9nC6RJybJfZjXKJDdoVUbUaBu0KBK1VD7RLCLQrCLRWdqO0ajHKB0xGaaUPoGWvchilla6yGOUCvY8Y5QJdhIxyEbmXD3mM8qEoA9RT/yP6mP5Ef9bRO0Btikfva/QX+iv9zWvDqU1U1w0LpzYonK6zhVMbcmzX2Y3SxgbthqjaDYN2A4LWrgdaGwLtBgKtnd0o7VqM8gmTUdrpE2jZmxxGaaebLEa5Sh8hRrlK1yCjXEPu5RaPUW6JMlA99T+lv9M/6J86egeqTfHofZv+Rf+m/3htON0RVYdh4XQHCqcOtnC6gxxbB7tR7nBBkyWTu5SMwqZ0DYc+k/SAuwOAUzYAyCkLcHsFGlHlZuDDYxZlDaU3trAvg1zuzvdl0ctN+hTRy026DenlNnQ3vVj8ovQV9WBVCchSb1nqI0t9ZamfjgGDVUd5DugvSwNkaaAsDfLe0PJzl/7GhZYfFlr+fKHlBx2fP7dvlEX42AW4y0Dj2AVg7AJ1sOsZyz14ARC8QH7jBGoyzmAu4wQqvbGFg1iMo8wP4jCOIjIlhqsR2MqH/Z3QE/SHjmcIk3aGiDqoGysEy1KILA2VpWE6BgSpjvIcMFyWRsjSSFm6z4uzK9RdjjIuu0Kx7BrFmF2h0PmN4hdPKB+8MHcZbhy8MAxeuC54oRC8MAheOL94wjWJJ4JLPOFKb2zhSBbxKPMjecQTpAQxJB7lw+GYeIZDxzOaSTxuB3TnhTGyNFaW7pelB3QMGKI6ynPAOFkaL0sTZOlBL86uKHcZbVx2RWHZFc2YXVHQ+UXziyeKD16Mu4w1Dl4MBi9WF7woCF4MBC+WXzyxmsQTxyWeWKU3tnA8i3iU+fE84olUghgSj/LhOEw846DjSWAST4Kog7vxwkRZmiRLD8nSwzoGBKuO8hwwWZamyNIjsvSoF2dXortMMi67ErHsSmLMrkTo/JL4xZPIBy/ZXaYYBy8Zg5eiC14iBC8ZgpfCL54UTeJJ5RJPitIbW3gqi3iU+VN5xBOvBDEkHuXDyZh4JkPHk8YknjRRh3TjhWmylC5LGbI0XceAENVRngMyZSlLlmbI0kwdQKYqC0JAlA8zncBTD4egZfaM46JpmEny8e3Vu0/ffv0HDBzk5x8QODhoSHDIUOew4ZWVTufxfEuJeYXdsta83GK1m1eaS5avKbPZLWarvdZRn2GzltqrHQ3T7340wNE46943exZOmthz6nb9/UBtvzc5Xv8Mb36ePS/DVlwu2pjc+4jGb6RbrHkl5VkWc2H+vOIa17/w2fe/gdMtaz/3c6m7X0l7csoKRQvg8wVlT6t035NjW+v83D/3cdQtsNuKq5zu5V1/HefBzjDWKje4s+sThmh7Qqnr74MNRhDibtxlkk/93XcCRnTzrL4NmWvK8gpLVV6wIbusqHjWM+IJfft1nS6B07uFatrT6WQk9w5d4AWLh/gvUz9e71mBAAA=","debug_symbols":"tZjhais5DIXfZX7nhyVbln1fZVlK2qaXQEhLbrKwlL77uqNzZtuFhCXD/TNSMrE8+nyOPeR9et49Xn4+7I8vr7+mH3+8T4+n/eGw//lweH3anvevx/Ht+8dm4seH82m3G19NX+6PUW/b0+54nn4cL4fDZvpre7jMP/r1tj3O8bw9jbtpM+2OzyOOgi/7w+4z+9j8OzpdH5q1Y3Duugwv/dt4uTG+ZI5vbRlv/m283hifxFkgqd1TQRL7z5KvVijXKxRxViiafKkg//8Zaql8hmrlni6qyFJB87UKN1bSMlfSLF9byVvjK1swt3XjW7pjfK1Ukn9Zg/8qca0UZf0qyvplvFmiS1ksOdq/VsJWC/r2U/jSSPd+hx5bIsxmV/Ugbe169vXr2devZ1+9nqrr17P/1vX0xvVsfoe/+7LR9/pdD3+OT9un/enb2TjJeLjNpPM1j0GbqcxXm691vvpoekzZIvQIkkYcCy+CqIijig5Jyaijo6gYYkV0xDbXlj4HTREkgsYcmhELosUcWhE95tIWNbVHzAlREHUum6PBHB3maDHXqJ3RZUabucccBX0WibmKRs2SEdFnQZ8lmBWPEF2W6NJS1DZBRJ+WYw4riBZzGZgZmBn6NPRZg1oNajW6rNFlBbNqiOizesxRG2KPuRzMHMwcfTr69KDmQc2hjOjSwcyhjYY+G7TRoI0GbTQwa2DW0GdDny2otaDWo8seXXYw69BGR58d2ujQRoc2Oph1MBvvMUyESYCTlBELoiFWSt6ZNCadLljsAJ2IAKBIZkJLLJ6QwCjiiDAFXCEKkKLCRJlk+q4wgWpEaTWl12gQoUMkB1TJgggG8IhkYJVsTEghO53emHR6nmwL2dIuQr9IAd0CujCMwDFSyLZwp6FtxLjXGDcb425jy3ZDtjSP0D1ioGugC/sI/COVbGtmQgoV6pJamUBfUsm2ki2tJPSSOOg66MJMAjeJk61TYbSUOBXWqLBGhTWybWRLYwmdJQ10G+jCWgJvSSfbToXRYNKpsE6FdSqsk20nW9pM6DNN2NIT9nS4TOEyTdzUkzGpTKAwTY0JFKYCtirCRJlkJgWHiSFWREcEWxUoTOkzVShMVZlAYapgq2pMKhNn0nB+4VSDyxQu07wcbDzZ6DPNPNsyD7fM0y3zeMtkS58pfaYFdAvowmUKl2kh2+JMSKFAYWqJCRSmRrZGtvSZ0mdqoGugC5cpXKaVbKswIYWaeZ4XJlCYVrKtZEufKX2mDroOunCZwmXqZOtUGH2mToU5FeZU2KfPtH58vmKd9tvHww7/Ibxcjk9f/lI4//3GO/zT4e30+rR7vpx2n69Y873x0vUP","file_map":{"17":{"source":"// Exposed only for usage in `std::meta`\npub(crate) mod poseidon2;\n\nuse crate::default::Default;\nuse crate::embedded_curve_ops::{\n    EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_array_return,\n};\nuse crate::meta::derive_via;\nuse crate::static_assert;\n\n/// The size of the state accepted by the backend in `poseidon2_permutation`.\nglobal POSEIDON2_CONFIG_STATE_SIZE: u32 = poseidon2_config_state_size();\n\n#[foreign(sha256_compression)]\n// docs:start:sha256_compression\npub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}\n// docs:end:sha256_compression\n\n#[foreign(keccakf1600)]\n// docs:start:keccakf1600\npub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}\n// docs:end:keccakf1600\n\npub mod keccak {\n    #[deprecated(\"This function has been moved to std::hash::keccakf1600\")]\n    pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {\n        super::keccakf1600(input)\n    }\n}\n\n#[foreign(blake2s)]\n// docs:start:blake2s\npub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]\n// docs:end:blake2s\n{}\n\n// docs:start:blake3\npub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]\n// docs:end:blake3\n{\n    if crate::runtime::is_unconstrained() {\n        // Temporary measure while Barretenberg is main proving system.\n        // Please open an issue if you're working on another proving system and running into problems due to this.\n        crate::static_assert(\n            N <= 1024,\n            \"Barretenberg cannot prove blake3 hashes with inputs larger than 1024 bytes\",\n        );\n    }\n    __blake3(input)\n}\n\n#[foreign(blake3)]\nfn __blake3<let N: u32>(input: [u8; N]) -> [u8; 32] {}\n\n// docs:start:pedersen_commitment\npub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint {\n    // docs:end:pedersen_commitment\n    pedersen_commitment_with_separator(input, 0)\n}\n\n#[inline_always]\npub fn pedersen_commitment_with_separator<let N: u32>(\n    input: [Field; N],\n    separator: u32,\n) -> EmbeddedCurvePoint {\n    let mut points = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N];\n    for i in 0..N {\n        points[i] = EmbeddedCurveScalar::from_field(input[i]);\n    }\n    let generators = derive_generators(\"DEFAULT_DOMAIN_SEPARATOR\".as_bytes(), separator);\n    multi_scalar_mul(generators, points)\n}\n\n// docs:start:pedersen_hash\npub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field\n// docs:end:pedersen_hash\n{\n    pedersen_hash_with_separator(input, 0)\n}\n\n#[no_predicates]\npub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {\n    let mut scalars: [EmbeddedCurveScalar; N + 1] = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N + 1];\n    let mut generators: [EmbeddedCurvePoint; N + 1] =\n        [EmbeddedCurvePoint::point_at_infinity(); N + 1];\n    crate::assert_constant(separator);\n    let domain_generators: [EmbeddedCurvePoint; N] =\n        derive_generators(\"DEFAULT_DOMAIN_SEPARATOR\".as_bytes(), separator);\n\n    for i in 0..N {\n        scalars[i] = EmbeddedCurveScalar::from_field(input[i]);\n        generators[i] = domain_generators[i];\n    }\n    scalars[N] = EmbeddedCurveScalar { lo: N as Field, hi: 0 as Field };\n\n    let length_generator: [EmbeddedCurvePoint; 1] =\n        derive_generators(\"pedersen_hash_length\".as_bytes(), 0);\n    generators[N] = length_generator[0];\n    multi_scalar_mul_array_return(generators, scalars, true)[0].x\n}\n\n#[field(bn254)]\n#[inline_always]\npub fn derive_generators<let N: u32, let M: u32>(\n    domain_separator_bytes: [u8; M],\n    starting_index: u32,\n) -> [EmbeddedCurvePoint; N] {\n    crate::assert_constant(domain_separator_bytes);\n    crate::assert_constant(starting_index);\n    __derive_generators(domain_separator_bytes, starting_index)\n}\n\n#[builtin(derive_pedersen_generators)]\n#[field(bn254)]\nfn __derive_generators<let N: u32, let M: u32>(\n    domain_separator_bytes: [u8; M],\n    starting_index: u32,\n) -> [EmbeddedCurvePoint; N] {}\n\npub fn poseidon2_permutation<let N: u32>(input: [Field; N]) -> [Field; N] {\n    static_assert(\n        N == POSEIDON2_CONFIG_STATE_SIZE,\n        f\"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}\",\n    );\n    poseidon2_permutation_internal(input)\n}\n\n#[foreign(poseidon2_permutation)]\nfn poseidon2_permutation_internal<let N: u32>(input: [Field; N]) -> [Field; N] {}\n\n#[foreign(poseidon2_config_state_size)]\ncomptime fn poseidon2_config_state_size() -> u32 {}\n\n// Generic hashing support.\n// Partially ported and impacted by rust.\n\n// Hash trait shall be implemented per type.\n#[derive_via(derive_hash)]\npub trait Hash {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher;\n}\n\n// docs:start:derive_hash\ncomptime fn derive_hash(s: TypeDefinition) -> Quoted {\n    let name = quote { $crate::hash::Hash };\n    let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: $crate::hash::Hasher };\n    let for_each_field = |name| quote { _self.$name.hash(_state); };\n    crate::meta::make_trait_impl(\n        s,\n        name,\n        signature,\n        for_each_field,\n        quote {},\n        |fields| fields,\n    )\n}\n// docs:end:derive_hash\n\n// Hasher trait shall be implemented by algorithms to provide hash-agnostic means.\n// TODO: consider making the types generic here ([u8], [Field], etc.)\npub trait Hasher {\n    fn finish(self) -> Field;\n\n    /// Returns the hash value without consuming the hasher.\n    /// Override this for more efficient implementations that avoid copying.\n    /// TODO: deprecate finish() and replace it\n    fn finish_ref(&self) -> Field {\n        (*self).finish()\n    }\n\n    fn write(&mut self, input: Field);\n}\n\n// BuildHasher is a factory trait, responsible for production of specific Hasher.\npub trait BuildHasher {\n    type H: Hasher;\n\n    fn build_hasher(self) -> H;\n}\n\npub struct BuildHasherDefault<H>;\n\nimpl<H> BuildHasher for BuildHasherDefault<H>\nwhere\n    H: Hasher + Default,\n{\n    type H = H;\n\n    fn build_hasher(_self: Self) -> H {\n        H::default()\n    }\n}\n\nimpl<H> Default for BuildHasherDefault<H>\nwhere\n    H: Hasher + Default,\n{\n    fn default() -> Self {\n        BuildHasherDefault {}\n    }\n}\n\nimpl Hash for Field {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        H::write(state, self);\n    }\n}\n\nimpl Hash for u8 {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        H::write(state, self as Field);\n    }\n}\n\nimpl Hash for u16 {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        H::write(state, self as Field);\n    }\n}\n\nimpl Hash for u32 {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        H::write(state, self as Field);\n    }\n}\n\nimpl Hash for u64 {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        H::write(state, self as Field);\n    }\n}\n\nimpl Hash for u128 {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        H::write(state, self as Field);\n    }\n}\n\nimpl Hash for i8 {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        H::write(state, self as u8 as Field);\n    }\n}\n\nimpl Hash for i16 {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        H::write(state, self as u16 as Field);\n    }\n}\n\nimpl Hash for i32 {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        H::write(state, self as u32 as Field);\n    }\n}\n\nimpl Hash for i64 {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        H::write(state, self as u64 as Field);\n    }\n}\n\nimpl Hash for bool {\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        H::write(state, self as Field);\n    }\n}\n\nimpl Hash for () {\n    fn hash<H>(_self: Self, _state: &mut H)\n    where\n        H: Hasher,\n    {}\n}\n\nimpl<T, let N: u32> Hash for [T; N]\nwhere\n    T: Hash,\n{\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        for elem in self {\n            elem.hash(state);\n        }\n    }\n}\n\nimpl<T> Hash for [T]\nwhere\n    T: Hash,\n{\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        self.len().hash(state);\n        for elem in self {\n            elem.hash(state);\n        }\n    }\n}\n\nimpl<A, B> Hash for (A, B)\nwhere\n    A: Hash,\n    B: Hash,\n{\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        self.0.hash(state);\n        self.1.hash(state);\n    }\n}\n\nimpl<A, B, C> Hash for (A, B, C)\nwhere\n    A: Hash,\n    B: Hash,\n    C: Hash,\n{\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        self.0.hash(state);\n        self.1.hash(state);\n        self.2.hash(state);\n    }\n}\n\nimpl<A, B, C, D> Hash for (A, B, C, D)\nwhere\n    A: Hash,\n    B: Hash,\n    C: Hash,\n    D: Hash,\n{\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        self.0.hash(state);\n        self.1.hash(state);\n        self.2.hash(state);\n        self.3.hash(state);\n    }\n}\n\nimpl<A, B, C, D, E> Hash for (A, B, C, D, E)\nwhere\n    A: Hash,\n    B: Hash,\n    C: Hash,\n    D: Hash,\n    E: Hash,\n{\n    fn hash<H>(self, state: &mut H)\n    where\n        H: Hasher,\n    {\n        self.0.hash(state);\n        self.1.hash(state);\n        self.2.hash(state);\n        self.3.hash(state);\n        self.4.hash(state);\n    }\n}\n\n// Some test vectors for Pedersen hash and Pedersen Commitment.\n// They have been generated using the same functions so the tests are for now useless\n// but they will be useful when we switch to Noir implementation.\n#[test]\nfn assert_pedersen() {\n    assert_eq(\n        pedersen_hash_with_separator([1], 1),\n        0x1b3f4b1a83092a13d8d1a59f7acb62aba15e7002f4440f2275edb99ebbc2305f,\n    );\n    assert_eq(\n        pedersen_commitment_with_separator([1], 1),\n        EmbeddedCurvePoint {\n            x: 0x054aa86a73cb8a34525e5bbed6e43ba1198e860f5f3950268f71df4591bde402,\n            y: 0x209dcfbf2cfb57f9f6046f44d71ac6faf87254afc7407c04eb621a6287cac126,\n        },\n    );\n\n    assert_eq(\n        pedersen_hash_with_separator([1, 2], 2),\n        0x26691c129448e9ace0c66d11f0a16d9014a9e8498ee78f4d69f0083168188255,\n    );\n    assert_eq(\n        pedersen_commitment_with_separator([1, 2], 2),\n        EmbeddedCurvePoint {\n            x: 0x2e2b3b191e49541fe468ec6877721d445dcaffe41728df0a0eafeb15e87b0753,\n            y: 0x2ff4482400ad3a6228be17a2af33e2bcdf41be04795f9782bd96efe7e24f8778,\n        },\n    );\n    assert_eq(\n        pedersen_hash_with_separator([1, 2, 3], 3),\n        0x0bc694b7a1f8d10d2d8987d07433f26bd616a2d351bc79a3c540d85b6206dbe4,\n    );\n    assert_eq(\n        pedersen_commitment_with_separator([1, 2, 3], 3),\n        EmbeddedCurvePoint {\n            x: 0x1fee4e8cf8d2f527caa2684236b07c4b1bad7342c01b0f75e9a877a71827dc85,\n            y: 0x2f9fedb9a090697ab69bf04c8bc15f7385b3e4b68c849c1536e5ae15ff138fd1,\n        },\n    );\n    assert_eq(\n        pedersen_hash_with_separator([1, 2, 3, 4], 4),\n        0xdae10fb32a8408521803905981a2b300d6a35e40e798743e9322b223a5eddc,\n    );\n    assert_eq(\n        pedersen_commitment_with_separator([1, 2, 3, 4], 4),\n        EmbeddedCurvePoint {\n            x: 0x07ae3e202811e1fca39c2d81eabe6f79183978e6f12be0d3b8eda095b79bdbc9,\n            y: 0x0afc6f892593db6fbba60f2da558517e279e0ae04f95758587760ba193145014,\n        },\n    );\n    assert_eq(\n        pedersen_hash_with_separator([1, 2, 3, 4, 5], 5),\n        0xfc375b062c4f4f0150f7100dfb8d9b72a6d28582dd9512390b0497cdad9c22,\n    );\n    assert_eq(\n        pedersen_commitment_with_separator([1, 2, 3, 4, 5], 5),\n        EmbeddedCurvePoint {\n            x: 0x1754b12bd475a6984a1094b5109eeca9838f4f81ac89c5f0a41dbce53189bb29,\n            y: 0x2da030e3cfcdc7ddad80eaf2599df6692cae0717d4e9f7bfbee8d073d5d278f7,\n        },\n    );\n    assert_eq(\n        pedersen_hash_with_separator([1, 2, 3, 4, 5, 6], 6),\n        0x1696ed13dc2730062a98ac9d8f9de0661bb98829c7582f699d0273b18c86a572,\n    );\n    assert_eq(\n        pedersen_commitment_with_separator([1, 2, 3, 4, 5, 6], 6),\n        EmbeddedCurvePoint {\n            x: 0x190f6c0e97ad83e1e28da22a98aae156da083c5a4100e929b77e750d3106a697,\n            y: 0x1f4b60f34ef91221a0b49756fa0705da93311a61af73d37a0c458877706616fb,\n        },\n    );\n    assert_eq(\n        pedersen_hash_with_separator([1, 2, 3, 4, 5, 6, 7], 7),\n        0x128c0ff144fc66b6cb60eeac8a38e23da52992fc427b92397a7dffd71c45ede3,\n    );\n    assert_eq(\n        pedersen_commitment_with_separator([1, 2, 3, 4, 5, 6, 7], 7),\n        EmbeddedCurvePoint {\n            x: 0x015441e9d29491b06563fac16fc76abf7a9534c715421d0de85d20dbe2965939,\n            y: 0x1d2575b0276f4e9087e6e07c2cb75aa1baafad127af4be5918ef8a2ef2fea8fc,\n        },\n    );\n    assert_eq(\n        pedersen_hash_with_separator([1, 2, 3, 4, 5, 6, 7, 8], 8),\n        0x2f960e117482044dfc99d12fece2ef6862fba9242be4846c7c9a3e854325a55c,\n    );\n    assert_eq(\n        pedersen_commitment_with_separator([1, 2, 3, 4, 5, 6, 7, 8], 8),\n        EmbeddedCurvePoint {\n            x: 0x1657737676968887fceb6dd516382ea13b3a2c557f509811cd86d5d1199bc443,\n            y: 0x1f39f0cb569040105fa1e2f156521e8b8e08261e635a2b210bdc94e8d6d65f77,\n        },\n    );\n    assert_eq(\n        pedersen_hash_with_separator([1, 2, 3, 4, 5, 6, 7, 8, 9], 9),\n        0x0c96db0790602dcb166cc4699e2d306c479a76926b81c2cb2aaa92d249ec7be7,\n    );\n    assert_eq(\n        pedersen_commitment_with_separator([1, 2, 3, 4, 5, 6, 7, 8, 9], 9),\n        EmbeddedCurvePoint {\n            x: 0x0a3ceae42d14914a432aa60ec7fded4af7dad7dd4acdbf2908452675ec67e06d,\n            y: 0xfc19761eaaf621ad4aec9a8b2e84a4eceffdba78f60f8b9391b0bd9345a2f2,\n        },\n    );\n    assert_eq(\n        pedersen_hash_with_separator([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 10),\n        0x2cd37505871bc460a62ea1e63c7fe51149df5d0801302cf1cbc48beb8dff7e94,\n    );\n    assert_eq(\n        pedersen_commitment_with_separator([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 10),\n        EmbeddedCurvePoint {\n            x: 0x2fb3f8b3d41ddde007c8c3c62550f9a9380ee546fcc639ffbb3fd30c8d8de30c,\n            y: 0x300783be23c446b11a4c0fabf6c91af148937cea15fcf5fb054abf7f752ee245,\n        },\n    );\n}\n","path":"std/hash/mod.nr","function_locations":[{"start":572,"name":"sha256_compression"},{"start":707,"name":"keccakf1600"},{"start":882,"name":"keccak::keccakf1600"},{"start":1044,"name":"blake2s"},{"start":1142,"name":"blake3"},{"start":1629,"name":"__blake3"},{"start":1747,"name":"pedersen_commitment"},{"start":1976,"name":"pedersen_commitment_with_separator"},{"start":2380,"name":"pedersen_hash"},{"start":2537,"name":"pedersen_hash_with_separator"},{"start":3531,"name":"derive_generators"},{"start":3890,"name":"__derive_generators"},{"start":3968,"name":"poseidon2_permutation"},{"start":4324,"name":"poseidon2_permutation_internal"},{"start":4417,"name":"poseidon2_config_state_size"},{"start":4728,"name":"derive_hash"},{"start":5953,"name":"<impl BuildHasher for BuildHasherDefault<H>>::build_hasher"},{"start":6085,"name":"<impl Default for BuildHasherDefault<H>>::default"},{"start":6217,"name":"<impl Hash for Field>::hash"},{"start":6347,"name":"<impl Hash for u8>::hash"},{"start":6487,"name":"<impl Hash for u16>::hash"},{"start":6627,"name":"<impl Hash for u32>::hash"},{"start":6767,"name":"<impl Hash for u64>::hash"},{"start":6908,"name":"<impl Hash for u128>::hash"},{"start":7047,"name":"<impl Hash for i8>::hash"},{"start":7193,"name":"<impl Hash for i16>::hash"},{"start":7340,"name":"<impl Hash for i32>::hash"},{"start":7487,"name":"<impl Hash for i64>::hash"},{"start":7635,"name":"<impl Hash for bool>::hash"},{"start":7782,"name":"<impl Hash for ()>::hash"},{"start":7914,"name":"<impl Hash for [T; N]>::hash"},{"start":8103,"name":"<impl Hash for [T]>::hash"},{"start":8343,"name":"<impl Hash for (A, B)>::hash"},{"start":8559,"name":"<impl Hash for (A, B, C)>::hash"},{"start":8822,"name":"<impl Hash for (A, B, C, D)>::hash"},{"start":9132,"name":"<impl Hash for (A, B, C, D, E)>::hash"},{"start":9528,"name":"assert_pedersen"}]},"49":{"source":"use poseidon::poseidon2::Poseidon2;\n\nfn main(\n    secret: Field,\n    private_license_data: Field,\n    merkle_path: [Field; 20],\n    leaf_index: u32,\n    public_name: pub Field,\n    public_merkle_root: pub Field,\n) {\n    // 1. Hash the leaf using the Poseidon2 struct and providing the length (3 elements)\n    let computed_leaf = Poseidon2::hash([secret, private_license_data, public_name], 3);\n\n    // 2. Climb the tree\n    let mut computed_root = computed_leaf;\n    let mut index = leaf_index;\n\n    for i in 0..20 {\n        let sibling = merkle_path[i];\n        if index % 2 == 0 {\n            // Hashing 2 elements: root and sibling\n            computed_root = Poseidon2::hash([computed_root, sibling], 2);\n        } else {\n            // Hashing 2 elements: sibling and root\n            computed_root = Poseidon2::hash([sibling, computed_root], 2);\n        }\n        index = index / 2;\n    }\n\n    // 3. Verify\n    assert(computed_root == public_merkle_root);\n}\n","path":"/mnt/c/Users/Clement/Documents/Hybrid-Transparency-core/circuits/src/main.nr","function_locations":[{"start":214,"name":"main"}]},"57":{"source":"use std::default::Default;\nuse std::hash::Hasher;\n\nglobal RATE: u32 = 3;\n\npub struct Poseidon2 {\n    cache: [Field; 3],\n    state: [Field; 4],\n    cache_size: u32,\n    squeeze_mode: bool, // 0 => absorb, 1 => squeeze\n}\n\nimpl Poseidon2 {\n    #[no_predicates]\n    pub fn hash<let N: u32>(input: [Field; N], message_size: u32) -> Field {\n        Poseidon2::hash_internal(input, message_size)\n    }\n\n    pub(crate) fn new(iv: Field) -> Poseidon2 {\n        let mut result =\n            Poseidon2 { cache: [0; 3], state: [0; 4], cache_size: 0, squeeze_mode: false };\n        result.state[RATE] = iv;\n        result\n    }\n\n    fn perform_duplex(&mut self) {\n        // add the cache into sponge state\n        self.state[0] += self.cache[0];\n        self.state[1] += self.cache[1];\n        self.state[2] += self.cache[2];\n        self.state = crate::poseidon2_permutation(self.state);\n    }\n\n    fn absorb(&mut self, input: Field) {\n        assert(!self.squeeze_mode);\n        if self.cache_size == RATE {\n            // If we're absorbing, and the cache is full, apply the sponge permutation to compress the cache\n            self.perform_duplex();\n            self.cache[0] = input;\n            self.cache_size = 1;\n        } else {\n            // If we're absorbing, and the cache is not full, add the input into the cache\n            self.cache[self.cache_size] = input;\n            self.cache_size += 1;\n        }\n    }\n\n    fn squeeze(&mut self) -> Field {\n        assert(!self.squeeze_mode);\n        // If we're in absorb mode, apply sponge permutation to compress the cache.\n        self.perform_duplex();\n        self.squeeze_mode = true;\n\n        // Pop one item off the top of the permutation and return it.\n        self.state[0]\n    }\n\n    fn hash_internal<let N: u32>(input: [Field; N], in_len: u32) -> Field {\n        let two_pow_64 = 18446744073709551616;\n        let iv: Field = (in_len as Field) * two_pow_64;\n        let mut state = [0; 4];\n        state[RATE] = iv;\n\n        if std::runtime::is_unconstrained() {\n            for i in 0..(in_len / RATE) {\n                state[0] += input[i * RATE];\n                state[1] += input[i * RATE + 1];\n                state[2] += input[i * RATE + 2];\n                state = crate::poseidon2_permutation(state);\n            }\n\n            // handle remaining elements after last full RATE-sized chunk\n            let num_extra_fields = in_len % RATE;\n            if num_extra_fields != 0 {\n                let remainder_start = in_len - num_extra_fields;\n                state[0] += input[remainder_start];\n                if num_extra_fields > 1 {\n                    state[1] += input[remainder_start + 1];\n                }\n            }\n        } else {\n            let mut states: [[Field; 4]; N / RATE + 1] = [[0; 4]; N / RATE + 1];\n            states[0] = state;\n\n            // process all full RATE-sized chunks, storing state after each permutation\n            for chunk_idx in 0..(N / RATE) {\n                for i in 0..RATE {\n                    state[i] += input[chunk_idx * RATE + i];\n                }\n                state = crate::poseidon2_permutation(state);\n                states[chunk_idx + 1] = state;\n            }\n\n            // get state at the last full block before in_len\n            let first_partially_filled_chunk = in_len / RATE;\n            state = states[first_partially_filled_chunk];\n\n            // handle remaining elements after last full RATE-sized chunk\n            let remainder_start = (in_len / RATE) * RATE;\n            for j in 0..RATE {\n                let idx = remainder_start + j;\n                if idx < in_len {\n                    state[j] += input[idx];\n                }\n            }\n        }\n\n        // always run final permutation unless we just completed a full chunk\n        // still need to permute once if in_len is 0\n        if (in_len == 0) | (in_len % RATE != 0) {\n            state = crate::poseidon2_permutation(state);\n        };\n\n        state[0]\n    }\n}\n\npub struct Poseidon2Hasher {\n    _state: [Field],\n}\n\nimpl Hasher for Poseidon2Hasher {\n    fn finish(self) -> Field {\n        let iv: Field = (self._state.len() as Field) * 18446744073709551616; // iv = (self._state.len() << 64)\n        let mut sponge = Poseidon2::new(iv);\n        for i in 0..self._state.len() {\n            sponge.absorb(self._state[i]);\n        }\n        sponge.squeeze()\n    }\n\n    fn write(&mut self, input: Field) {\n        self._state = self._state.push_back(input);\n    }\n}\n\nimpl Default for Poseidon2Hasher {\n    fn default() -> Self {\n        Poseidon2Hasher { _state: @[] }\n    }\n}\n","path":"/home/clement/nargo/github.com/noir-lang/poseidon/v0.3.0/src/poseidon2.nr","function_locations":[{"start":333,"name":"Poseidon2::hash"},{"start":442,"name":"Poseidon2::new"},{"start":649,"name":"Poseidon2::perform_duplex"},{"start":923,"name":"Poseidon2::absorb"},{"start":1453,"name":"Poseidon2::squeeze"},{"start":1814,"name":"Poseidon2::hash_internal"},{"start":4105,"name":"<impl Hasher for Poseidon2Hasher>::finish"},{"start":4426,"name":"<impl Hasher for Poseidon2Hasher>::write"},{"start":4549,"name":"<impl Default for Poseidon2Hasher>::default"}]}}}
+</file>
+
+<file path="src/utils/zk-prove.ts">
+import { Noir } from '@noir-lang/noir_js';
+import { UltraHonkBackend } from '@aztec/bb.js';
+import circuit from './hybrid_transparency.json';
+import { toFieldHex } from '../lib/commitment';
+
+export async function generateIdentityProof(
+  secret: string,
+  privateLicenseData: string,
+  merklePath: string[],
+  leafIndex: number,
+  publicName: string,
+  publicMerkleRoot: string
+) {
+  try {
+    console.log("🚀 Starting Real ZK Proof Generation...");
+
+    // bb.js 4.x: UltraHonkBackend takes the base64 bytecode string directly
+    // @ts-ignore: Beta types require a Barretenberg api arg, but it is created internally at runtime
+    const backend = new UltraHonkBackend((circuit as any).bytecode);
+    const noir = new Noir(circuit as any);
+
+    // Safely pad the Merkle path to 20 elements
+    const paddedPath = [...merklePath];
+    while (paddedPath.length < 20) {
+      paddedPath.push("0x0000000000000000000000000000000000000000000000000000000000000000");
+    }
+
+    // Format inputs
+    const inputs = {
+      secret: toFieldHex(secret),
+      private_license_data: toFieldHex(privateLicenseData),
+      merkle_path: paddedPath.map(p => p.startsWith('0x') ? p : toFieldHex(p)),
+      leaf_index: leafIndex.toString(),
+      public_name: toFieldHex(publicName),
+      public_merkle_root: toFieldHex(publicMerkleRoot)
+    };
+
+    console.log("⚙️ Calculating witness...");
+    const { witness } = await noir.execute(inputs);
+
+    console.log("⚙️ Generating proof payload...");
+    const { proof, publicInputs } = await backend.generateProof(witness);
+
+    const proofHex = "0x" + Array.from(proof)
+      .map((b: number) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    return {
+      proof: proofHex,
+      publicInputs,
+    };
+  } catch (error) {
+    console.error("❌ ZK Proof Generation failed:", error);
+    throw error;
+  }
+}
+</file>
+
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+</file>
+
+<file path="eslint.config.mjs">
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+</file>
+
+<file path="next.config.ts">
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  // turbopack: {},
+  serverExternalPackages: ['@aztec/bb.js', 'poseidon-lite'],
+  transpilePackages: [],
+  typescript: {
+    ignoreBuildErrors: true,
+  }
+};
+
+export default nextConfig;
+</file>
+
+<file path="package.json">
+{
+  "name": "web-citizen",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@aztec/bb.js": "^4.2.1",
+    "@noir-lang/acvm_js": "^1.0.0-beta.21",
+    "@noir-lang/noir_js": "^1.0.0-beta.21",
+    "@noir-lang/noirc_abi": "^1.0.0-beta.21",
+    "bip39": "^3.1.0",
+    "dotenv": "^17.4.2",
+    "ethers": "^6.16.0",
+    "html5-qrcode": "^2.3.8",
+    "jsqr": "^1.4.0",
+    "next": "16.2.4",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@noir-lang/noir_wasm": "^1.0.0-beta.21",
+    "@tailwindcss/postcss": "^4",
+    "@types/bip39": "^2.4.2",
+    "@types/node": "^20.19.39",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+</file>
+
+<file path="postcss.config.mjs">
+const config = {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+
+export default config;
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+</file>
+
+<file path="vercel.json">
+{
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install"
+}
+</file>
+
+</files>
