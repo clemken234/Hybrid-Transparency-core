@@ -62,10 +62,5 @@ export async function generateIdentityProof(
   } catch (error) {
     console.error("❌ ZK Proof Generation failed:", error);
     throw error;
-  } finally {
-    // 4. CRITICAL: Destroy the raw engine to save your laptop's memory
-    if (bb) {
-      await bb.destroy();
-    }
   }
 }
