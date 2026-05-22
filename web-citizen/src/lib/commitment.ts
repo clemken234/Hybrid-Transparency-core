@@ -23,10 +23,11 @@ async function hashPair(bb: Barretenberg, left: string, right: string): Promise<
 
 export function getOrGenerateSecret(): string {
   const existingSecret = localStorage.getItem('lto_secret');
-  if (existingSecret) return existingSecret;
+  if (existingSecret) return clampToField(existingSecret);
 
   const bytes = crypto.getRandomValues(new Uint8Array(32));
-  const newSecret = "0x" + Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+  const raw = "0x" + Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+  const newSecret = clampToField(raw);
   localStorage.setItem('lto_secret', newSecret);
   return newSecret;
 }
@@ -65,6 +66,14 @@ export function toFieldHex(value: string | number | bigint): string {
   if (typeof value === 'string' && value.startsWith('0x')) return '0x' + value.slice(2).padStart(64, '0');
   if (typeof value === 'string') return '0x' + BigInt(value).toString(16).padStart(64, '0');
   return '0x' + BigInt(value).toString(16).padStart(64, '0');
+}
+
+// BN254 scalar field modulus — values passed to Poseidon2 must be < this.
+const BN254_MODULUS = BigInt("21888242871839275222246405745257275088548364400416034343698204186575808495617");
+
+export function clampToField(hex: string): string {
+  const reduced = BigInt(hex) % BN254_MODULUS;
+  return '0x' + reduced.toString(16).padStart(64, '0');
 }
 
 export function stringToFieldHex(text: string): string {

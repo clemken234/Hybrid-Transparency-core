@@ -62,5 +62,9 @@ export async function generateIdentityProof(
   } catch (error) {
     console.error("❌ ZK Proof Generation failed:", error);
     throw error;
+  } finally {
+    if (bb) {
+      await bb.destroy();
+    }
   }
 }

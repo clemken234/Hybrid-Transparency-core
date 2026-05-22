@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 // ✅ IMPORT THE NEW DYNAMIC HASHER AND REMOVED generateSecret
-import { createFinalMerkleLeaf, stringToFieldHex, computePrivateLicenseData } from "@/lib/commitment";
+import { createFinalMerkleLeaf, stringToFieldHex, computePrivateLicenseData, clampToField } from "@/lib/commitment";
 import mockCitizens, { type CitizenSubject } from "@/lib/mockData";
 // ✅ IMPORT YOUR MOCK SECRETS TO MATCH THE CITIZEN INDEX
 import mockSecrets from "@/lib/MockSecret"; 
@@ -53,7 +53,7 @@ export default function RegisterPage() {
       const subject = citizenRecord.subject;
       const ltoSignature = citizenRecord.ltoSignature; 
       const mockSecretObj = mockSecrets[selectedIndex] || mockSecrets[0];
-      const secret = mockSecretObj.secret;
+      const secret = clampToField(mockSecretObj.secret);
       const fullName = `${subject.firstName} ${subject.lastName}`;
 
       // --- 2. BARRETENBERG HASHING ---
@@ -81,6 +81,11 @@ export default function RegisterPage() {
     } catch (err: unknown) {
       setError((err as Error).message || "Something went wrong.");
       setStep("select");
+    } finally {
+      // THIS SAVES YOUR LAPTOP FROM CRASHING
+      if (bb) {
+        await bb.destroy();
+      }
     }
   };
 

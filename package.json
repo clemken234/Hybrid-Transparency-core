@@ -3,6 +3,19 @@
   "private": true,
   "scripts": {
     "circuit:sync": "node scripts/generate-verifier.mjs",
-    "verifier:sync": "node scripts/generate-verifier.mjs"
+    "verifier:sync": "node scripts/generate-verifier.mjs",
+    "benchmark": "npx tsx scripts/comprehensive-benchmark.ts",
+    "leaves:generate": "npx tsx scripts/generate-pre-seeded-leaves.ts"
+  },
+  "dependencies": {
+    "@aztec/bb.js": "^4.2.1",
+    "@noir-lang/acvm_js": "^1.0.0-beta.21",
+    "@noir-lang/noir_js": "^1.0.0-beta.21",
+    "@noir-lang/noirc_abi": "^1.0.0-beta.21"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "tsx": "^4.19.2",
+    "typescript": "^5"
   }
 }

@@ -55,7 +55,7 @@ export async function computeLeanIMTPath(leafHash: string, leavesHex: string[]) 
 
   const bb = await Barretenberg.new();
 
-
+  try {
     async function hashNode(leftStr: string, rightStr: string) {
         const lHex = leftStr.startsWith('0x') ? leftStr : `0x${leftStr}`;
         const rHex = rightStr.startsWith('0x') ? rightStr : `0x${rightStr}`;
@@ -100,6 +100,7 @@ export async function computeLeanIMTPath(leafHash: string, leavesHex: string[]) 
     const root = "0x" + BigInt(currentLevel[0]).toString(16).padStart(64, "0");
 
     return { path: path, root: root, leafIndex: leafIndex };
-
-
+  } finally {
+    await bb.destroy();
+  }
 }
