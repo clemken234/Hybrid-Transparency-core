@@ -5,7 +5,58 @@ import { useRouter } from "next/navigation";
 import jsQR from "jsqr";
 import { Html5Qrcode } from "html5-qrcode";
 import { QRCodeSVG } from "qrcode.react";
+import { ethers } from "ethers";
 import { fetchRoot, getContract, fetchAllLeaves, computeLeanIMTPath } from "@/utils/chain";
+import mockCitizens from "@/lib/mockData";
+
+// 1. HARDCODE THE OFFICIAL LTO ADMIN PUBLIC WALLET ADDRESS
+// Based on standard Hardhat Account #0 (Make sure this matches your team's chosen Admin address)
+const OFFICIAL_ADMIN_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+
+const verifyLtoSignature = (subject: any, ltoSignature: string | undefined): boolean => {
+    if (!subject || !ltoSignature) {
+        console.error("❌ Missing citizen data or signature.");
+        return false;
+    }
+
+    try {
+        // 2. RECONSTRUCT THE EXACT STRING THE BACKEND SIGNED
+        // CRITICAL: The keys must be in the EXACT same order as index.js Stage 1 & 1.5
+        const credentialDataString = JSON.stringify({
+            licenseID: subject.licenseID,
+            firstName: subject.firstName,
+            lastName: subject.lastName,
+            dateOfBirth: subject.dateOfBirth,
+            licenseType: subject.licenseType,
+            expirationDate: subject.expirationDate,
+            restrictions: subject.restrictions,
+            conditions: subject.conditions,
+            bloodType: subject.bloodType,
+            address: subject.address
+        });
+
+        // 3. RECOVER THE SIGNER'S ADDRESS
+        // Ethers uses the data string and the signature to figure out who locked it
+        const recoveredAddress = ethers.verifyMessage(credentialDataString, ltoSignature);
+
+        console.log("🔥 --- SIGNATURE DEBUGGER --- 🔥");
+        console.log("Expected Admin Address: ", OFFICIAL_ADMIN_ADDRESS.toLowerCase());
+        console.log("Actually Recovered:     ", recoveredAddress.toLowerCase());
+
+        // 4. COMPARE THE ADDRESSES
+        if (recoveredAddress.toLowerCase() === OFFICIAL_ADMIN_ADDRESS.toLowerCase()) {
+            console.log("✅ MATCH! This ID was officially signed by the LTO Admin.");
+            return true;
+        } else {
+            console.log("❌ MISMATCH! This ID is forged or tampered with.");
+            return false;
+        }
+
+    } catch (error: any) {
+        console.error("🚨 Signature verification crashed:", error.message);
+        return false;
+    }
+};
 
 /* ── Logo ── */
 const KakuhoLogo = ({ size = 34 }: { size?: number }) => (
@@ -328,6 +379,104 @@ const CredentialCard = ({ data, isAnchored, onAlert }: { data: any; isAnchored?:
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+/* ── Credential Authenticity Card ── */
+const CredentialAuthCard = ({ citizen }: { citizen: any }) => {
+  const [verifyResult, setVerifyResult] = useState<boolean | null>(null);
+  const [sigCopied, setSigCopied] = useState(false);
+  const [keyCopied, setKeyCopied] = useState(false);
+
+  const subject = citizen.subject;
+  const licenseID: string = subject?.licenseID || citizen.licenseId || citizen.licenseID || "";
+  const mockEntry = mockCitizens.find((m) => m.subject.licenseID === licenseID);
+  const ltoSignature: string | undefined = mockEntry?.ltoSignature;
+
+  const handleVerify = () => {
+    const isAuthentic = verifyLtoSignature(subject, ltoSignature);
+    setVerifyResult(isAuthentic);
+  };
+
+  const copy = (text: string, setter: (v: boolean) => void) => {
+    navigator.clipboard.writeText(text);
+    setter(true);
+    setTimeout(() => setter(false), 2000);
+  };
+
+  const truncate = (s: string) => s.slice(0, 10) + "…" + s.slice(-8);
+
+  return (
+    <div className="kk-card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <span className="kk-label">LTO Admin Signature</span>
+          <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>Verify credential was issued by the LTO admin key</p>
+        </div>
+        <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(249,115,22,.08)", border: "1.5px solid rgba(249,115,22,.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <svg width="16" height="16" fill="none" stroke="var(--orange)" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+        </div>
+      </div>
+
+      {/* Admin Public Key */}
+      <div style={{ background: "rgba(0,0,0,.2)", borderRadius: 10, padding: "10px 12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <span style={{ fontSize: 9, fontWeight: 800, color: "var(--text3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Admin Public Key</span>
+          <button onClick={() => copy(OFFICIAL_ADMIN_ADDRESS, setKeyCopied)} style={{ background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", borderRadius: 4, color: "var(--orange)", fontSize: 7, fontWeight: 800, cursor: "pointer", padding: "2px 6px", letterSpacing: ".05em" }}>
+            {keyCopied ? "COPIED" : "COPY"}
+          </button>
+        </div>
+        <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--cyan)", wordBreak: "break-all", lineHeight: 1.4 }}>{OFFICIAL_ADMIN_ADDRESS}</span>
+      </div>
+
+      {/* LTO Signature */}
+      <div style={{ background: "rgba(0,0,0,.2)", borderRadius: 10, padding: "10px 12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <span style={{ fontSize: 9, fontWeight: 800, color: "var(--text3)", letterSpacing: ".1em", textTransform: "uppercase" }}>LTO Signature</span>
+          {ltoSignature && (
+            <button onClick={() => copy(ltoSignature, setSigCopied)} style={{ background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", borderRadius: 4, color: "var(--orange)", fontSize: 7, fontWeight: 800, cursor: "pointer", padding: "2px 6px", letterSpacing: ".05em" }}>
+              {sigCopied ? "COPIED" : "COPY"}
+            </button>
+          )}
+        </div>
+        {ltoSignature
+          ? <span style={{ fontSize: 9, fontFamily: "var(--font-mono)", color: "var(--text2)", wordBreak: "break-all", lineHeight: 1.5 }}>{ltoSignature}</span>
+          : <span style={{ fontSize: 10, color: "var(--text3)", fontStyle: "italic" }}>No signature found for this credential</span>
+        }
+      </div>
+
+      {ltoSignature && (
+        <button onClick={handleVerify} className="btn-kk btn-orange" style={{ width: "100%", fontSize: 12 }}>
+          <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ flexShrink: 0 }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+          Verify Admin Signature
+        </button>
+      )}
+
+      {verifyResult !== null && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10,
+          background: verifyResult ? "rgba(34,197,94,.08)" : "rgba(239,68,68,.08)",
+          border: `1.5px solid ${verifyResult ? "rgba(34,197,94,.25)" : "rgba(239,68,68,.25)"}`,
+        }} className="anim-fade-in">
+          <div style={{ width: 28, height: 28, borderRadius: "50%", background: verifyResult ? "rgba(34,197,94,.12)" : "rgba(239,68,68,.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {verifyResult
+              ? <svg width="14" height="14" fill="none" stroke="var(--green)" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              : <svg width="14" height="14" fill="none" stroke="rgba(239,68,68,.9)" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            }
+          </div>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 700, color: verifyResult ? "var(--green)" : "rgba(239,68,68,.9)" }}>
+              {verifyResult ? "Signature Valid" : "Signature Invalid"}
+            </p>
+            <p style={{ fontSize: 10, color: "var(--text3)", marginTop: 1 }}>
+              {verifyResult
+                ? `Issued by ${truncate(OFFICIAL_ADMIN_ADDRESS)}`
+                : "Could not verify admin signature for this credential"}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -734,6 +883,9 @@ const handleSyncMerklePath = async () => {
             </div>
           )}
         </div>
+
+        {/* Credential Authenticity */}
+        <CredentialAuthCard citizen={citizen} />
 
         <div className="kk-card" style={{ padding: 18 }}><span className="kk-label">Data</span><WalletExportQR /></div>
         <button onClick={handleLogout} className="btn-kk btn-red" style={{ width: "100%" }}>Logout Session</button>
