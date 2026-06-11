@@ -7,12 +7,12 @@ fn hash_pair(left: Field, right: Field) -> Field {
 }
 
 fn main(
-    secret: Field,
-    private_license_data: Field,
-    merkle_path: [Field; 20],
-    leaf_index: u32,
-    public_name: pub Field,
-    public_merkle_root: pub Field,
+    secret: Field, // [PRIVATE] The secret part of your license
+    private_license_data: Field, // [PRIVATE] The encrypted data (Salt + License ID)
+    merkle_path: [Field; 20], // [PRIVATE] Proof path
+    leaf_index: u32, // [PRIVATE] Index of your leaf
+    public_name: pub Field, // [PUBLIC] Your Name (We don't know this)
+    public_merkle_root: pub Field, // [PUBLIC] Root of the tree provided by the National Chain
 ) {
     // Hash strictly in pairs using stdlib Poseidon2Hasher
     let temp_hash = hash_pair(secret, private_license_data);

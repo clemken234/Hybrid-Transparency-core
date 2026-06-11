@@ -30,6 +30,51 @@ export default function ProvePage() {
   const [proofData, setProofData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(-1);
+  const [isSending, setIsSending] = useState(false);
+  const [sendResult, setSendResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleSendToVerifier = async () => {
+    if (!proofData) return;
+    setIsSending(true);
+    setSendResult(null);
+
+    try {
+      // Structure matches standard ZK verification payloads
+      const payload = {
+        type: "ZK_VERIFICATION",
+        proof: proofData.proof,
+        publicInputs: proofData.publicInputs
+      };
+
+      // Deployed backend URL
+      const VERIFIER_API_URL = "https://lazy-cougars-kick.loca.lt"; 
+
+      const response = await fetch(VERIFIER_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Verifier server responded with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      setSendResult({ 
+        success: true, 
+        message: data.message || "Proof sent and verified successfully!" 
+      });
+    } catch (err: unknown) {
+      setSendResult({ 
+        success: false, 
+        message: (err as Error).message || "Failed to deliver proof to the verifier backend." 
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   useEffect(() => {
     const raw = localStorage.getItem("citizen_license");
@@ -306,6 +351,42 @@ export default function ProvePage() {
                 >
                     💾 Download Proof (JSON)
                 </button>
+
+                {/* COMMENTED OUT FOR NOW - VERIFIER API NOT WORKING
+                <button 
+                    onClick={handleSendToVerifier} 
+                    disabled={isSending}
+                    className="mt-2 px-6 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-700 text-white font-semibold rounded shadow-md transition-all"
+                    style={{ border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%" }}
+                >
+                    {isSending ? (
+                      <>
+                        <div className="anim-spin" style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,.2)", borderTopColor: "rgba(255,255,255,.6)", borderRadius: "50%" }} />
+                        Transmitting to Verifier...
+                      </>
+                    ) : (
+                      <>🚀 Send Proof to Verifier</>
+                    )}
+                </button>
+
+                {sendResult && (
+                  <div style={{
+                    marginTop: 12,
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    background: sendResult.success ? "rgba(34,197,94,.08)" : "rgba(239,68,68,.08)",
+                    border: `1.5px solid ${sendResult.success ? "rgba(34,197,94,.25)" : "rgba(239,68,68,.25)"}`,
+                    color: sendResult.success ? "#4ade80" : "#f87171"
+                  }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span>{sendResult.success ? "✅" : "❌"}</span>
+                      <strong>{sendResult.message}</strong>
+                    </div>
+                  </div>
+                )}
+                */}
               </div>
             )}
           </div>
