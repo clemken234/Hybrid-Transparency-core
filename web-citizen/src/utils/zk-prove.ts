@@ -22,7 +22,7 @@ export async function generateIdentityProof(
 
     // 2. Boot the Barretenberg WASM engine
     console.log("⚙️ Booting Barretenberg WASM Engine...");
-    bb = await Barretenberg.new();
+    bb = await Barretenberg.new({ threads: 1 });
 
     // 3. Pass the base64 string + Barretenberg instance (matches the constructor signature)
     const backend = new UltraHonkBackend(acirBytecode, bb);

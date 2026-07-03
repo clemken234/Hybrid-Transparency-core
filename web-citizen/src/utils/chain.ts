@@ -10,15 +10,18 @@ const REGISTRY_ABI = [
 ];
 
 const REGISTRY_ADDRESS = process.env.NEXT_PUBLIC_REGISTRY_ADDRESS!;
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL!;
 
 export async function getContract() {
-  const provider = new ethers.JsonRpcProvider(RPC_URL);
+  const isServer = typeof window === 'undefined';
+  const rpcUrl = isServer ? process.env.NEXT_PUBLIC_RPC_URL! : `${window.location.origin}/api/rpc`;
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
   return new ethers.Contract(REGISTRY_ADDRESS, REGISTRY_ABI, provider);
 }
 
 export async function getContractWithSigner(privateKey: string) {
-  const provider = new ethers.JsonRpcProvider(RPC_URL);
+  const isServer = typeof window === 'undefined';
+  const rpcUrl = isServer ? process.env.NEXT_PUBLIC_RPC_URL! : `${window.location.origin}/api/rpc`;
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
   const wallet = new ethers.Wallet(privateKey, provider);
   return new ethers.Contract(REGISTRY_ADDRESS, REGISTRY_ABI, wallet);
 }
@@ -53,7 +56,7 @@ export async function computeLeanIMTPath(leafHash: string, leavesHex: string[]) 
   let leafIndex = leavesHex.indexOf(leafHash);
   if (leafIndex === -1) return null;
 
-  const bb = await Barretenberg.new();
+  const bb = await Barretenberg.new({ threads: 1 });
 
   try {
     async function hashNode(leftStr: string, rightStr: string) {

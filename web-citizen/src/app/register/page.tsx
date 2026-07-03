@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 // ✅ IMPORT THE NEW DYNAMIC HASHER AND REMOVED generateSecret
@@ -30,12 +30,25 @@ const KakuhoLogo = ({ size = 38 }: { size?: number }) => (
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
   const [step, setStep] = useState<Step>("select");
   const [error, setError] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<{ leafHash: string; subject: CitizenSubject } | null>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", color: "var(--text)" }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   const handleRegister = async () => {
     if (selectedIndex === null) return;
@@ -57,7 +70,7 @@ export default function RegisterPage() {
       const fullName = `${subject.firstName} ${subject.lastName}`;
 
       // --- 2. BARRETENBERG HASHING ---
-      bb = await Barretenberg.new();
+      bb = await Barretenberg.new({ threads: 1 });
 
       const privateData = await computePrivateLicenseData(bb, subject.licenseID, subject.firstName, subject.lastName, subject.dateOfBirth, subject.licenseType, subject.expirationDate, subject.restrictions, subject.conditions, subject.bloodType, subject.address, ltoSignature);
       const leafHash = await createFinalMerkleLeaf(bb, secret, privateData, fullName);

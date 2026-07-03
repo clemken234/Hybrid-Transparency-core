@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { generateIdentityProof } from "@/utils/zk-prove";
+
 import { fetchAllLeaves, computeLeanIMTPath, fetchRoot } from "@/utils/chain";
 
 const decodeHexName = (hexString: string) => {
@@ -25,6 +25,7 @@ const STEPS = [
 ];
 
 export default function ProvePage() {
+  const [isMounted, setIsMounted] = useState(false);
   const [citizen, setCitizen] = useState<any>(null);
   const [isProving, setIsProving] = useState(false);
   const [proofData, setProofData] = useState<any>(null);
@@ -85,6 +86,7 @@ export default function ProvePage() {
         localStorage.removeItem("citizen_license");
       }
     }
+    setIsMounted(true);
   }, []);
 
   const handleProve = async () => {
@@ -131,16 +133,28 @@ export default function ProvePage() {
 
       setCurrentStep(2);
 
-      // 4. Pass those 6 exact variables into  IdentityProof()
+      // 4. Pass those 6 exact variables into the backend API
       console.log("WAIT, what is the raw name before translation?:", public_name);
-      const result = await generateIdentityProof(
-        secret,
-        private_license_data,
-        merklePath,
-        leafIndex,
-        public_name,
-        publicMerkleRoot
-      );
+      
+      const response = await fetch(`/api/prove`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          secret,
+          private_license_data: private_license_data,
+          merklePath,
+          leafIndex,
+          public_name,
+          publicMerkleRoot
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Backend proof generation failed with status: ${response.status}`);
+      }
+
+      const result = await response.json();
 
       const updated = { ...citizen, merkle_path: merklePath, leaf_index: leafIndex, public_merkle_root: publicMerkleRoot };
       localStorage.setItem("citizen_license", JSON.stringify(updated));
@@ -188,6 +202,14 @@ export default function ProvePage() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url); // Clears the memory
   };
+
+  if (!isMounted) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", color: "var(--text)" }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   if (!citizen) {
     return (

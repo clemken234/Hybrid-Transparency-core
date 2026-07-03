@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import { useRouter } from "next/navigation";
+
 const KakuhoLogo = ({ size = 38 }: { size?: number }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
     <div style={{
