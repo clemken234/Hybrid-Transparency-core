@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: [
+    'heavy-link-democrat-precision.trycloudflare.com'
+  ],
   // turbopack: {},
   serverExternalPackages: ['@aztec/bb.js', 'poseidon-lite', '@noir-lang/noir_js', '@noir-lang/acvm_js'],
   transpilePackages: [],

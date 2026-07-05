@@ -47,8 +47,8 @@ export default function ProvePage() {
         publicInputs: proofData.publicInputs
       };
 
-      // Deployed backend URL
-      const VERIFIER_API_URL = "https://lazy-cougars-kick.loca.lt"; 
+      // Proxy via Next.js backend to bypass CORS
+      const VERIFIER_API_URL = "/api/verify"; 
 
       const response = await fetch(VERIFIER_API_URL, {
         method: "POST",
@@ -374,7 +374,6 @@ export default function ProvePage() {
                     💾 Download Proof (JSON)
                 </button>
 
-                {/* COMMENTED OUT FOR NOW - VERIFIER API NOT WORKING
                 <button 
                     onClick={handleSendToVerifier} 
                     disabled={isSending}
@@ -408,7 +407,6 @@ export default function ProvePage() {
                     </div>
                   </div>
                 )}
-                */}
               </div>
             )}
           </div>
