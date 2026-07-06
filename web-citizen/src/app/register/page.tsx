@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import jsQR from "jsqr";
+import { Html5Qrcode } from "html5-qrcode";
 // ✅ IMPORT THE NEW DYNAMIC HASHER AND REMOVED generateSecret
 import { createFinalMerkleLeaf, stringToFieldHex, computePrivateLicenseData, clampToField } from "@/lib/commitment";
 import mockCitizens, { type CitizenSubject } from "@/lib/mockData";
@@ -28,13 +30,91 @@ const KakuhoLogo = ({ size = 38 }: { size?: number }) => (
   </div>
 );
 
+/* ── QR Scanner modal ── */
+const QRScannerModal = ({ onScan, onError, onClose }: { onScan: (d: string) => void; onError: (m: string) => void; onClose: () => void }) => {
+  const [isReady, setIsReady] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 300, height: 300 } },
+      (decoded) => { onScan(decoded); html5QrCode.stop().then(() => onClose()); },
+      () => {}
+    ).then(() => setIsReady(true)).catch(err => { 
+      console.warn("Camera access failed or denied. Showing fallback.", err);
+    });
+
+    return () => { if (html5QrCode.isScanning) html5QrCode.stop().catch(e => console.error(e)); };
+  }, [onScan, onError, onClose]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+        if (code) {
+          onScan(code.data);
+          onClose();
+        } else {
+          onError("Could not detect a valid QR code in the image.");
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(13,15,20,.98)", zIndex: 250, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(24px)" }} className="anim-fade-in">
+      <div style={{ width: "100%", maxWidth: 480, aspectRatio: "3/4", background: "black", borderRadius: 32, overflow: "hidden", position: "relative", border: "1.5px solid var(--border)" }}>
+        <div id="reader" style={{ width: "100%", height: "100%" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 300, height: 300, border: "1px solid rgba(249,115,22,.3)", borderRadius: 24, position: "relative" }}>
+            {(["tl", "tr", "bl", "br"] as const).map(c => (
+              <div key={c} style={{
+                position: "absolute", width: 24, height: 24,
+                ...(c === "tl" ? { top: -1, left: -1, borderTop: "2px solid var(--orange)", borderLeft: "2px solid var(--orange)", borderTopLeftRadius: 12 } : {}),
+                ...(c === "tr" ? { top: -1, right: -1, borderTop: "2px solid var(--orange)", borderRight: "2px solid var(--orange)", borderTopRightRadius: 12 } : {}),
+                ...(c === "bl" ? { bottom: -1, left: -1, borderBottom: "2px solid var(--orange)", borderLeft: "2px solid var(--orange)", borderBottomLeftRadius: 12 } : {}),
+                ...(c === "br" ? { bottom: -1, right: -1, borderBottom: "2px solid var(--orange)", borderRight: "2px solid var(--orange)", borderBottomRightRadius: 12 } : {}),
+              }} />
+            ))}
+            {isReady && <div className="scan-line" style={{ position: "absolute", insetInline: 0, height: 2, background: "linear-gradient(to right,transparent,var(--orange),transparent)", boxShadow: "0 0 12px rgba(249,115,22,.8)" }} />}
+          </div>
+        </div>
+        <button onClick={onClose} style={{ position: "absolute", top: 12, right: 12, width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.2)", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer", zIndex: 20 }}>✕</button>
+      </div>
+      <div style={{ marginTop: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.05)", border: "1.5px solid var(--border)", padding: "10px 20px", borderRadius: 99 }}>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--orange)" }} className="anim-pulse" />
+          <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text2)", letterSpacing: ".3em", textTransform: "uppercase" }}>Scanning Admin QR Code</span>
+        </div>
+        <div style={{ fontSize: 12, color: "var(--text3)", display: "flex", alignItems: "center", gap: 8 }}>
+          <span>Camera not working?</span>
+          <button onClick={() => fileInputRef.current?.click()} style={{ background: "none", border: "none", color: "var(--orange)", textDecoration: "underline", cursor: "pointer", fontWeight: 600 }}>Upload Image</button>
+          <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} style={{ display: "none" }} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function RegisterPage() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [step, setStep] = useState<Step>("select");
   const [error, setError] = useState<string | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<{ leafHash: string; subject: CitizenSubject } | null>(null);
 
@@ -50,8 +130,49 @@ export default function RegisterPage() {
     );
   }
 
-  const handleRegister = async () => {
-    if (selectedIndex === null) return;
+  const handleScan = async (data: string) => {
+    try {
+      let licenseID = "";
+
+      if (data.startsWith("kakuho-wallet:")) {
+        // Handle full wallet backup payload
+        try {
+          const base64Data = data.replace("kakuho-wallet:", "");
+          const decoded = decodeURIComponent(escape(atob(base64Data)));
+          const parsed = JSON.parse(decoded);
+          licenseID = parsed.subject?.licenseID;
+        } catch (e) {
+          throw new Error("Invalid wallet backup format.");
+        }
+      } else {
+        // Handle Admin JSON {"licenseID":"N01-26-835232"}
+        try {
+          const parsed = JSON.parse(data);
+          licenseID = parsed.licenseID;
+        } catch (e) {
+          throw new Error("Invalid QR code format. Please scan a valid Admin QR or Wallet Backup.");
+        }
+      }
+
+      if (!licenseID) {
+        throw new Error("No valid licenseID found in the QR code.");
+      }
+
+      // Find index in mockCitizens
+      const idx = mockCitizens.findIndex(c => c.subject.licenseID === licenseID);
+      if (idx === -1) {
+        throw new Error("License ID not recognized by the registry.");
+      }
+
+      setShowScanner(false);
+      handleRegister(idx);
+    } catch (err: any) {
+      setError(err.message || "Failed to read QR code.");
+      setShowScanner(false);
+    }
+  };
+
+  const handleRegister = async (idx: number) => {
     setError(null);
     setStep("committing");
     setProgress(0);
@@ -62,10 +183,10 @@ export default function RegisterPage() {
     try {
       const tick = setInterval(() => setProgress(p => Math.min(p + 5, 95)), 40);
 
-      const citizenRecord = mockCitizens[selectedIndex];
+      const citizenRecord = mockCitizens[idx];
       const subject = citizenRecord.subject;
       const ltoSignature = citizenRecord.ltoSignature; 
-      const mockSecretObj = mockSecrets[selectedIndex] || mockSecrets[0];
+      const mockSecretObj = mockSecrets[idx] || mockSecrets[0];
       const secret = clampToField(mockSecretObj.secret);
       const fullName = `${subject.firstName} ${subject.lastName}`;
 
@@ -89,6 +210,8 @@ export default function RegisterPage() {
       }));
 
       setResult({ leafHash, subject });
+      clearInterval(tick);
+      setProgress(100);
       setTimeout(() => setStep("done"), 300);
       
     } catch (err: unknown) {
@@ -168,9 +291,6 @@ export default function RegisterPage() {
     );
   }
 
-  /* ── Select step ── */
-  const selected = selectedIndex !== null ? mockCitizens[selectedIndex].subject : null;
-
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative" }}>
       <div className="grid-bg" />
@@ -184,96 +304,30 @@ export default function RegisterPage() {
           <KakuhoLogo size={32} />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }} className="anim-fade-up">
+        <div style={{ display: "flex", flexDirection: "column", gap: 24, flex: 1, justifyContent: "center", alignItems: "center", textAlign: "center" }} className="anim-fade-up">
+          <div style={{ width: 80, height: 80, borderRadius: 24, background: "rgba(255,255,255,.03)", border: "1.5px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+             <svg width="36" height="36" fill="none" stroke="var(--orange)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <path d="M4 7V4h3" />
+                <path d="M17 4h3v3" />
+                <path d="M20 17v3h-3" />
+                <path d="M7 20H4v-3" />
+                <rect x="7" y="7" width="10" height="10" rx="2" />
+             </svg>
+          </div>
           <div>
-            <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text)", letterSpacing: "-.025em", lineHeight: 1.15 }}>Choose Identity</h1>
-            <p style={{ fontSize: 13, color: "var(--text2)", marginTop: 8, lineHeight: 1.6 }}>Select your pre-approved identity to generate your unique secret and create your personal wallet.</p>
+            <h1 style={{ fontSize: 26, fontWeight: 700, color: "var(--text)", letterSpacing: "-.02em", lineHeight: 1.15 }}>No Identity Found</h1>
+            <p style={{ fontSize: 13, color: "var(--text2)", marginTop: 8, lineHeight: 1.6, maxWidth: 300, margin: "8px auto 0" }}>Your secure wallet is empty. Scan the QR code issued by the LTO Admin to claim your identity.</p>
           </div>
 
-          {/* Citizen dropdown */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, position: "relative" }}>
-            <label className="kk-label">Identity Subject</label>
+          {error && <div style={{ background: "rgba(239,68,68,.07)", border: "1.5px solid rgba(239,68,68,.2)", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#f87171", fontWeight: 600, width: "100%", maxWidth: 320 }}>{error}</div>}
 
-            <div onClick={() => setDropdownOpen(o => !o)} style={{
-              display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
-              background: selectedIndex !== null ? "rgba(249,115,22,.07)" : "var(--bg2)",
-              border: `1.5px solid ${dropdownOpen ? "rgba(249,115,22,.45)" : selectedIndex !== null ? "rgba(249,115,22,.3)" : "var(--border)"}`,
-              borderRadius: 14, cursor: "pointer", transition: "all .18s",
-              boxShadow: selectedIndex !== null ? "0 0 20px rgba(249,115,22,.08)" : "none",
-            }}>
-              {selectedIndex !== null ? (
-                <>
-                  <div style={{ width: 42, height: 42, borderRadius: "50%", background: "var(--orange-lite)", border: "1.5px solid rgba(249,115,22,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "var(--orange)", flexShrink: 0 }}>
-                    {mockCitizens[selectedIndex].subject.firstName[0]}{mockCitizens[selectedIndex].subject.lastName[0]}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14 }}>{mockCitizens[selectedIndex].subject.firstName} {mockCitizens[selectedIndex].subject.lastName}</p>
-                    <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)", marginTop: 1 }}>{mockCitizens[selectedIndex].subject.licenseID}</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(255,255,255,.04)", border: "1.5px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <svg width="16" height="16" fill="none" stroke="var(--text3)" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                  </div>
-                  <p style={{ flex: 1, fontSize: 14, color: "var(--text3)" }}>Search for your identity...</p>
-                </>
-              )}
-              <svg style={{ flexShrink: 0, transition: "transform .2s", transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)", color: "var(--text3)" }} width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-            </div>
-
-            {dropdownOpen && (
-              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 50, background: "var(--bg2)", border: "1.5px solid var(--border2)", borderRadius: 14, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,.45)" }} className="anim-fade-up">
-                {mockCitizens.map((c, i) => (
-                  <div key={i} onClick={() => { setSelectedIndex(i); setDropdownOpen(false); }} style={{
-                    display: "flex", alignItems: "center", gap: 14, padding: "13px 16px",
-                    background: selectedIndex === i ? "rgba(249,115,22,.07)" : "transparent",
-                    borderBottom: i < mockCitizens.length - 1 ? "1px solid var(--border)" : "none",
-                    cursor: "pointer", transition: "background .15s",
-                  }}
-                  onMouseEnter={e => { if (selectedIndex !== i) (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,.03)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = selectedIndex === i ? "rgba(249,115,22,.07)" : "transparent"; }}
-                  >
-                    <div style={{ width: 38, height: 38, borderRadius: "50%", background: selectedIndex === i ? "var(--orange-lite)" : "rgba(255,255,255,.06)", border: `1.5px solid ${selectedIndex === i ? "rgba(249,115,22,.3)" : "var(--border)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: selectedIndex === i ? "var(--orange)" : "var(--text3)", flexShrink: 0 }}>
-                      {c.subject.firstName[0]}{c.subject.lastName[0]}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: 700, color: "var(--text)", fontSize: 14 }}>{c.subject.firstName} {c.subject.lastName}</p>
-                      <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)", marginTop: 1 }}>{c.subject.licenseID}</p>
-                    </div>
-                    {selectedIndex === i && <svg width="14" height="14" fill="none" stroke="var(--orange)" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Preview */}
-          {selected && (
-            <div className="kk-card" style={{ padding: 18, borderColor: "rgba(249,115,22,.15)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <span className="kk-label">Credential Preview</span>
-                <span className="badge-kk badge-orange">Identity Registry</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 16px" }}>
-                {([["License ID", selected.licenseID], ["Blood Type", selected.bloodType], ["Date of Birth", selected.dateOfBirth], ["Address", selected.address], ["License Type", selected.licenseType], ["Expires", selected.expirationDate]] as [string, string][]).map(([l, v]) => (
-                  <div key={l}>
-                    <span className="kk-label" style={{ fontSize: 9, display: "block", marginBottom: 3 }}>{l}</span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)", fontWeight: 500 }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {error && <div style={{ background: "rgba(239,68,68,.07)", border: "1.5px solid rgba(239,68,68,.2)", borderRadius: 10, padding: "10px 14px", fontSize: 12, color: "#f87171", fontWeight: 600 }}>{error}</div>}
-
-          <button className="btn-kk btn-orange" style={{ width: "100%" }} disabled={selectedIndex === null} onClick={handleRegister}>
-            Set Up Secure Wallet
-            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+          <button className="btn-kk btn-orange" style={{ width: "100%", maxWidth: 320, padding: "14px 20px", fontSize: 14, marginTop: 20 }} onClick={() => setShowScanner(true)}>
+            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ flexShrink: 0 }}><path strokeLinecap="round" strokeLinejoin="round" d="M3 3h5v5H3zM3 16h5v5H3zM16 3h5v5h-5z" /></svg>
+            Scan License QR
           </button>
         </div>
       </div>
+      {showScanner && <QRScannerModal onScan={handleScan} onError={setError} onClose={() => setShowScanner(false)} />}
     </div>
   );
 }

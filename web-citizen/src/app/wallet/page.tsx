@@ -121,7 +121,7 @@ const QRScannerModal = ({ onScan, onError, onClose }: { onScan: (d: string) => v
 
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
+    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 300, height: 300 } },
       (decoded) => { onScan(decoded); html5QrCode.stop().then(() => onClose()); },
       () => {}
     ).then(() => setIsReady(true)).catch(err => { 
@@ -161,10 +161,10 @@ const QRScannerModal = ({ onScan, onError, onClose }: { onScan: (d: string) => v
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(13,15,20,.98)", zIndex: 250, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, backdropFilter: "blur(24px)" }} className="anim-fade-in">
-      <div style={{ width: "100%", maxWidth: 360, aspectRatio: "1", background: "black", borderRadius: 32, overflow: "hidden", position: "relative", border: "1.5px solid var(--border)" }}>
+      <div style={{ width: "100%", maxWidth: 480, aspectRatio: "3/4", background: "black", borderRadius: 32, overflow: "hidden", position: "relative", border: "1.5px solid var(--border)" }}>
         <div id="reader" style={{ width: "100%", height: "100%" }} />
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: 224, height: 224, border: "1px solid rgba(249,115,22,.3)", borderRadius: 24, position: "relative" }}>
+          <div style={{ width: 300, height: 300, border: "1px solid rgba(249,115,22,.3)", borderRadius: 24, position: "relative" }}>
             {(["tl", "tr", "bl", "br"] as const).map(c => (
               <div key={c} style={{
                 position: "absolute", width: 24, height: 24,
@@ -419,15 +419,25 @@ const CredentialAuthCard = ({ citizen }: { citizen: any }) => {
         </div>
       </div>
 
-      {/* Admin Public Key */}
-      <div style={{ background: "rgba(0,0,0,.2)", borderRadius: 10, padding: "10px 12px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-          <span style={{ fontSize: 9, fontWeight: 800, color: "var(--text3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Admin Public Key</span>
-          <button onClick={() => copy(OFFICIAL_ADMIN_ADDRESS, setKeyCopied)} style={{ background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", borderRadius: 4, color: "var(--orange)", fontSize: 7, fontWeight: 800, cursor: "pointer", padding: "2px 6px", letterSpacing: ".05em" }}>
-            {keyCopied ? "COPIED" : "COPY"}
-          </button>
+      {/* Admin Details */}
+      <div style={{ background: "rgba(0,0,0,.2)", borderRadius: 10, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div>
+          <span style={{ fontSize: 9, fontWeight: 800, color: "var(--text3)", letterSpacing: ".1em", textTransform: "uppercase", display: "block", marginBottom: 4 }}>Authorized LTO Admin</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--orange)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "white" }}>MP</div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Mary Grace Piattos</span>
+          </div>
         </div>
-        <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--cyan)", wordBreak: "break-all", lineHeight: 1.4 }}>{OFFICIAL_ADMIN_ADDRESS}</span>
+        <div style={{ height: 1, background: "rgba(255,255,255,.05)", margin: "0 -2px" }} />
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <span style={{ fontSize: 9, fontWeight: 800, color: "var(--text3)", letterSpacing: ".1em", textTransform: "uppercase" }}>Admin Public Key</span>
+            <button onClick={() => copy(OFFICIAL_ADMIN_ADDRESS, setKeyCopied)} style={{ background: "rgba(249,115,22,.12)", border: "1px solid rgba(249,115,22,.25)", borderRadius: 4, color: "var(--orange)", fontSize: 7, fontWeight: 800, cursor: "pointer", padding: "2px 6px", letterSpacing: ".05em" }}>
+              {keyCopied ? "COPIED" : "COPY"}
+            </button>
+          </div>
+          <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: "var(--cyan)", wordBreak: "break-all", lineHeight: 1.4 }}>{OFFICIAL_ADMIN_ADDRESS}</span>
+        </div>
       </div>
 
       {/* LTO Signature */}
@@ -748,9 +758,30 @@ const handleSyncMerklePath = async () => {
     </div>
   );
 
-  const WalletExportQR = () => {
+  const LeafHashQR = () => {
     const [show, setShow] = useState(false);
-    const [copied, setCopied] = useState(false);
+    const leafHex = citizen.leafHash?.startsWith("0x") ? citizen.leafHash : ("0x" + BigInt(citizen.leafHash || 0).toString(16).padStart(64, "0"));
+    
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {!show ? <button onClick={() => setShow(true)} className="btn-kk btn-ghost" style={{ width: "100%", fontSize: 12 }}>Show Leaf Hash for Admin</button> :
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <div style={{ background: "white", padding: 14, borderRadius: 14 }}><QRCodeSVG value={leafHex} size={260} bgColor="#ffffff" fgColor="#0d0f14" level="M" /></div>
+            <button onClick={() => setShow(false)} className="btn-kk btn-ghost" style={{ width: "100%", fontSize: 11 }}>Hide</button>
+            <div className="kk-card" style={{ padding: 16, marginTop: 10, width: "100%" }}>
+              <p style={{ fontSize: 11, color: "var(--text3)", textAlign: "center" }}>
+                The Admin will scan this QR code to insert your identity into the blockchain.
+              </p>
+            </div>
+          </div>
+        }
+      </div>
+    );
+  };
+
+  const AdvancedOptions = () => {
+    const [expanded, setExpanded] = useState(false);
+    const [showQR, setShowQR] = useState(false);
     const leafHex = citizen.leafHash?.startsWith("0x") ? citizen.leafHash : ("0x" + BigInt(citizen.leafHash || 0).toString(16).padStart(64, "0"));
     const exportPayload = `kakuho-wallet:${btoa(unescape(encodeURIComponent(JSON.stringify({ 
       secret: citizen.secret, 
@@ -762,50 +793,24 @@ const handleSyncMerklePath = async () => {
       subject: citizen.subject 
     }))))}`;
 
-    const handleCopyPayload = () => {
-      const proofData = localStorage.getItem("pending_proof");
-      let proofPayload = {
-        type: "ZK_VERIFICATION",
-        proof: "",
-        publicInputs: [] as string[]
-      };
-
-      if (proofData) {
-        try {
-          const parsed = JSON.parse(proofData);
-          proofPayload.proof = parsed.proof || "";
-          proofPayload.publicInputs = parsed.publicInputs || [];
-        } catch (e) {
-          console.warn("Could not parse pending_proof from localStorage.");
-        }
-      }
-
-      navigator.clipboard.writeText(JSON.stringify(proofPayload, null, 2));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    };
-
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {!show ? <button onClick={() => setShow(true)} className="btn-kk btn-ghost" style={{ width: "100%", fontSize: 12 }}>Show Export QR</button> :
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <div style={{ background: "white", padding: 14, borderRadius: 14 }}><QRCodeSVG value={exportPayload} size={260} bgColor="#ffffff" fgColor="#0d0f14" level="M" /></div>
-            <button onClick={() => setShow(false)} className="btn-kk btn-ghost" style={{ width: "100%", fontSize: 11 }}>Hide</button>
-            <div className="kk-card" style={{ padding: 20, marginTop: 20 }}>
-              <button 
-                onClick={handleCopyPayload} 
-                className={`btn-kk ${copied ? "btn-green" : "btn-orange"}`} 
-                style={{ width: "100%" }}
-              >
-                {copied ? "✓ Copied to Clipboard!" : "COPY EXPORT PAYLOAD"}
-              </button>
-              <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 10, textAlign: "center" }}>
-                Copy this proof payload to send to the Verifier.
-              </p>
-            </div>
-            {/* 👆 END OF UI 👆 */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24, marginBottom: 12 }}>
+        <button onClick={() => setExpanded(!expanded)} style={{ background: "none", border: "none", color: "var(--text3)", fontSize: 11, fontWeight: 700, cursor: "pointer", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: 0.7 }}>
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s" }}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+          Advanced & Developer Options
+        </button>
+        {expanded && (
+          <div className="kk-card anim-fade-up" style={{ padding: 18, border: "1.5px dashed rgba(239,68,68,.3)", background: "rgba(239,68,68,.03)" }}>
+            <span className="kk-label" style={{ color: "#ef4444" }}>Danger Zone</span>
+            <p style={{ fontSize: 11, color: "var(--text2)", marginTop: 6, marginBottom: 16, lineHeight: 1.5 }}>Exporting your full wallet will expose your cryptographic secrets. Only use this for debugging or backing up to another device.</p>
+            {!showQR ? <button onClick={() => setShowQR(true)} className="btn-kk btn-red" style={{ width: "100%", fontSize: 11, background: "rgba(239,68,68,.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,.3)" }}>Reveal Full Wallet Export</button> :
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                <div style={{ background: "white", padding: 14, borderRadius: 14 }}><QRCodeSVG value={exportPayload} size={220} bgColor="#ffffff" fgColor="#0d0f14" level="M" /></div>
+                <button onClick={() => setShowQR(false)} className="btn-kk btn-ghost" style={{ width: "100%", fontSize: 11 }}>Hide Backup</button>
+              </div>
+            }
           </div>
-        }
+        )}
       </div>
     );
   };
@@ -887,7 +892,10 @@ const handleSyncMerklePath = async () => {
         {/* Credential Authenticity */}
         <CredentialAuthCard citizen={citizen} />
 
-        <div className="kk-card" style={{ padding: 18 }}><span className="kk-label">Data</span><WalletExportQR /></div>
+        <div className="kk-card" style={{ padding: 18 }}><span className="kk-label">Submit to Registry</span><LeafHashQR /></div>
+        
+        <AdvancedOptions />
+
         <button onClick={handleLogout} className="btn-kk btn-red" style={{ width: "100%" }}>Logout Session</button>
       </div>
     );

@@ -5,7 +5,7 @@ export async function POST(request: Request) {
     const body = await request.text();
     
     // The deployed backend verifier URL
-    const VERIFIER_API_URL = process.env.NEXT_PUBLIC_VERIFIER_API_URL || "https://choosing-sue-grown-classifieds.trycloudflare.com/api/verify";
+    const VERIFIER_API_URL = process.env.NEXT_PUBLIC_VERIFIER_API_URL || "https://technician-ace-core-produced.trycloudflare.com/api/verify";
     // Proxy the request server-side to bypass browser CORS preflight
     const response = await fetch(VERIFIER_API_URL, {
       method: 'POST',
