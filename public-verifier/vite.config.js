@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    allowedHosts: ['hurled-preacher-splinter.ngrok-free.dev'],
+    allowedHosts: true,
     port: 5174,        // Forces this app to run on 5174
     strictPort: true,  // Tells Vite to crash if 5174 is busy, rather than guessing a new port
   }
